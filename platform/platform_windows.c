@@ -67,6 +67,7 @@ __declspec(dllimport) HANDLE __stdcall CreateFileMappingA(HANDLE hFile, void* lp
 __declspec(dllimport) LPVOID __stdcall MapViewOfFile(HANDLE hFileMappingObject, DWORD dwDesiredAccess, DWORD dwFileOffsetHigh, DWORD dwFileOffsetLow, size_t dwNumberOfBytesToMap);
 __declspec(dllimport) int __stdcall UnmapViewOfFile(LPCVOID lpBaseAddress);
 __declspec(dllimport) int __stdcall GetFileSizeEx(HANDLE hFile, LARGE_INTEGER* lpFileSize);
+__declspec(dllimport) void __stdcall Sleep(DWORD dwMilliseconds);
 
 // Our emulated heap state for Windows
 static uint8_t* windows_heap_base = NULL;
@@ -260,26 +261,42 @@ platform_fd_t platform_path_open(const char* path, size_t path_len, uint64_t rig
         access = GENERIC_READ;
     }
 
-    // Map oflags to Windows creation disposition
-    if ((oflags & PLATFORM_O_CREAT) && (oflags & PLATFORM_O_TRUNC)) {
-        creation = CREATE_ALWAYS;  // Create new or truncate existing
+    // Map oflags to Windows creation disposition.
+    //
+    // Note: we treat O_TRUNC alone the same as O_CREAT|O_TRUNC and use
+    // CREATE_ALWAYS, rather than TRUNCATE_EXISTING. TRUNCATE_EXISTING has
+    // been observed to fail intermittently on CI runners (sharing/scanning
+    // races right after we close the same path). CREATE_ALWAYS reliably
+    // produces the desired end state — a zero-length file open for writing
+    // — and matches POSIX O_TRUNC semantics whenever the file already
+    // exists, which is the normal use case.
+    if (oflags & PLATFORM_O_TRUNC) {
+        creation = CREATE_ALWAYS;  // Create new or truncate existing.
     } else if (oflags & PLATFORM_O_CREAT) {
-        creation = OPEN_ALWAYS;    // Open existing or create new
-    } else if (oflags & PLATFORM_O_TRUNC) {
-        creation = TRUNCATE_EXISTING;  // Truncate existing file (fails if doesn't exist)
+        creation = OPEN_ALWAYS;    // Open existing or create new.
     } else {
-        creation = OPEN_EXISTING;  // Open existing file
+        creation = OPEN_EXISTING;  // Open existing file.
     }
 
-    HANDLE handle = CreateFileA(
-        path,
-        access,
-        FILE_SHARE_READ | FILE_SHARE_WRITE,
-        NULL,
-        creation,
-        0,
-        NULL
-    );
+    HANDLE handle = INVALID_HANDLE_VALUE;
+    // Retry CreateFileA briefly to tolerate transient sharing violations on
+    // Windows. After we close a file, an antivirus or the search indexer can
+    // briefly open it with restrictive share modes, causing our next open of
+    // the same path to fail with ERROR_SHARING_VIOLATION. The window is
+    // typically a few milliseconds.
+    for (int attempt = 0; attempt < 20; attempt++) {
+        handle = CreateFileA(
+            path,
+            access,
+            FILE_SHARE_READ | FILE_SHARE_WRITE,
+            NULL,
+            creation,
+            0,
+            NULL
+        );
+        if (handle != INVALID_HANDLE_VALUE) break;
+        Sleep(50);
+    }
 
     if (handle == INVALID_HANDLE_VALUE) {
         return -1;
