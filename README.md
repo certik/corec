@@ -4,12 +4,18 @@ A minimal, portable core for writing C programs that run unchanged on every
 major platform — Linux, macOS, Windows, and the web (WebAssembly) — without
 depending on the C standard library, the C runtime, or libc.
 
+Every interaction with the host system flows through a single narrow header,
+[`platform/platform.h`](platform/platform.h) (fewer than 20 functions), and
+everything else in the project — and in repositories built on top of it — is
+written against that one interface. Porting to a new host means writing one
+new `platform/platform_<host>.c`.
+
 Everything in this repository is built `-nostdlib -nostdinc -fno-builtin`. The
 project consists of two parts:
 
 * **`platform/`** — the *only* place where the program talks to the host
-  system. A small, curated interface (`platform/platform.h`) is implemented
-  separately for each backend:
+  system. The `platform.h` interface is implemented separately for each
+  backend:
     * Linux — raw syscalls
     * macOS — `libSystem.dylib`
     * Windows — `kernel32.dll`
@@ -88,14 +94,7 @@ pixi run -e js serve_browser   # starts http.server on :8000
 The page provides text inputs for argv and stdin, mirrors stdout/stderr to
 `<pre>` panels and to the JS console, and shows the program's exit code.
 
-Aggregates:
-
-```bash
-pixi run all                    # Linux + WASM
-pixi run all_with_macos         # + macOS
-pixi run all_with_windows       # + Windows
-pixi run all_platforms          # all four
-```
+Run `pixi task list` to see all available tasks with descriptions.
 
 ## Layout
 
@@ -114,5 +113,6 @@ pixi run all_platforms          # all four
 
 ## Continuous Integration
 
-GitHub Actions runs the full test suite on Linux, macOS, Windows, and
-WebAssembly on every push and PR — see `.github/workflows/CI.yml`.
+GitHub Actions runs the full test suite — native binary, WebAssembly via
+`wasmtime`, and the same `.wasm` under Node.js — on Linux, macOS, and Windows
+on every push and PR. See `.github/workflows/CI.yml`.
