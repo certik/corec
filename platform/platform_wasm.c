@@ -175,6 +175,21 @@ void platform_file_unmap(uint64_t handle) {
     (void)handle;
 }
 
+// Buddy allocator hooks exported to the JS host. The JS counterpart
+// (platform/js/wasi.js and the example hosts) can use these to allocate
+// memory inside this module's linear memory before calling into the
+// `.wasm`. Native backends do not need this — they share the host's
+// address space with the embedder.
+__attribute__((export_name("wasm_buddy_alloc")))
+void *wasm_buddy_alloc(size_t size) {
+    return buddy_alloc(size, NULL);
+}
+
+__attribute__((export_name("wasm_buddy_free")))
+void wasm_buddy_free(void *ptr) {
+    buddy_free(ptr);
+}
+
 // Public initialization function for hosts that provide their own entry
 // point (PLATFORM_SKIP_ENTRY); the default _start path below calls this
 // itself.
