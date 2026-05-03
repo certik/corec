@@ -6,6 +6,37 @@
 // == Linux (x86_64) Implementation
 // =============================================================================
 
+// Compiler-runtime helpers required by the GNU/Clang toolchain in -nostdlib
+// mode on Linux.
+//
+// Even with -fno-builtin, Clang/GCC emit implicit calls to memcpy() and
+// memset() for things like struct assignment, passing/returning structs by
+// value, and aggregate initialization. Without libc (or compiler-rt /
+// libgcc), the link step fails with "undefined reference to `memcpy'" /
+// "`memset'".
+//
+// Other backends do not need this:
+//   * macOS:   libSystem.dylib provides memcpy/memset.
+//   * Windows: MSVC with /kernel inlines them as intrinsics.
+//   * WASM:    Clang lowers them to the native memory.copy / memory.fill
+//              instructions.
+//
+// The implementations are intentionally simple byte loops so the compiler
+// will not turn them back into self-recursive memcpy/memset calls via
+// loop-idiom recognition at higher optimization levels.
+void* memcpy(void* dest, const void* src, size_t n) {
+    unsigned char* d = (unsigned char*)dest;
+    const unsigned char* s = (const unsigned char*)src;
+    for (size_t i = 0; i < n; i++) d[i] = s[i];
+    return dest;
+}
+
+void* memset(void* s, int c, size_t n) {
+    unsigned char* p = (unsigned char*)s;
+    for (size_t i = 0; i < n; i++) p[i] = (unsigned char)c;
+    return s;
+}
+
 // Syscall numbers for x86_64
 #define SYS_READ 0
 #define SYS_OPEN 2
