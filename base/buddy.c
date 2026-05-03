@@ -7,19 +7,6 @@
 #include <base/mem.h>
 #include <base/exit.h>
 
-// Export buddy allocator functions for WASM JavaScript interop
-#ifdef __wasi__
-__attribute__((export_name("wasm_buddy_alloc")))
-void *wasm_buddy_alloc(size_t size) {
-    return buddy_alloc(size, NULL);
-}
-
-__attribute__((export_name("wasm_buddy_free")))
-void wasm_buddy_free(void *ptr) {
-    buddy_free(ptr);
-}
-#endif
-
 #define MIN_PAGE_SIZE 4096UL
 #define MAX_ORDER 20 // 2^20 * 4KB = 4GB
 
