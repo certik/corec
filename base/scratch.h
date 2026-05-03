@@ -1,6 +1,6 @@
 #pragma once
 
-#include <base/base_types.h>
+#include <base/types.h>
 #include <base/arena.h>
 
 typedef struct {

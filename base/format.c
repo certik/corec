@@ -1,10 +1,10 @@
-#include <base/base_types.h>
+#include <base/types.h>
 #include <base/stdarg.h>
 #include <base/mem.h>
 #include <base/format.h>
 #include <base/scratch.h>
 #include <base/exit.h>
-#include <base/base_io.h>
+#include <base/io.h>
 
 // Inline implementation of isdigit
 static inline int isdigit(int c) {

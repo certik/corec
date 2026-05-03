@@ -1,9 +1,9 @@
 #include <base/arena.h>
 #include <base/buddy.h>
-#include <base/base_types.h>
+#include <base/types.h>
 #include <base/assert.h>
 #include <base/exit.h>
-#include <base/base_io.h>
+#include <base/io.h>
 
 // All allocations will be aligned to this boundary (must be a power of two).
 #define ARENA_ALIGNMENT 16

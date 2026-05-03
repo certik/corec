@@ -1,6 +1,6 @@
 #pragma once
 
-#include <base/base_io.h>
+#include <base/io.h>
 
 #define FATAL_ERROR(x) do { PRINT_ERR(x); base_abort(); } while (0)
 

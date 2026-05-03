@@ -1,6 +1,6 @@
 #pragma once
 
-#include <base/base_types.h>
+#include <base/types.h>
 
 // Memory and string manipulation functions for base/
 // Self-contained implementations with no external dependencies

@@ -34,7 +34,7 @@
 // =============================================================================
 
 #include <platform/platform.h>
-#include <base/base_types.h>
+#include <base/types.h>
 #include <base/buddy.h>
 
 #define WASI(name) __attribute__((__import_module__("wasi_snapshot_preview1"), __import_name__(#name))) name

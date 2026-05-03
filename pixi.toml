@@ -19,7 +19,6 @@ clang \
     -nostdlib \
     -nostdinc \
     -fno-builtin \
-    -I base \
     -I platform \
     -I . \
     -Wl,--no-entry \
@@ -29,13 +28,13 @@ clang \
     -o corec_test.wasm \
     test_base_only.c \
     test_base.c \
-    base/base_io.c \
+    base/io.c \
     base/buddy.c \
     base/arena.c \
     base/scratch.c \
     base/format.c \
-    base/base_math.c \
-    base/base_string.c \
+    base/math.c \
+    base/string.c \
     base/mem.c \
     base/numconv.c \
     base/assert.c \
@@ -74,19 +73,18 @@ clang \
     -nostdlib \
     -nostdinc \
     -fno-builtin \
-    -I base \
     -I platform \
     -I . \
     -o corec_test_linux \
     test_base_only.c \
     test_base.c \
-    base/base_io.c \
+    base/io.c \
     base/buddy.c \
     base/arena.c \
     base/scratch.c \
     base/format.c \
-    base/base_math.c \
-    base/base_string.c \
+    base/math.c \
+    base/string.c \
     base/mem.c \
     base/numconv.c \
     base/assert.c \
@@ -109,19 +107,18 @@ clang \
     -nostdlib \
     -nostdinc \
     -fno-builtin \
-    -I base \
     -I platform \
     -I . \
     -o corec_test_macos \
     test_base_only.c \
     test_base.c \
-    base/base_io.c \
+    base/io.c \
     base/buddy.c \
     base/arena.c \
     base/scratch.c \
     base/format.c \
-    base/base_math.c \
-    base/base_string.c \
+    base/math.c \
+    base/string.c \
     base/mem.c \
     base/numconv.c \
     base/assert.c \
@@ -143,7 +140,6 @@ cl \
     /X \
     /std:c11 \
     /Zc:preprocessor \
-    /I"base" \
     /I"platform" \
     /I"." \
     /GS- \
@@ -152,13 +148,13 @@ cl \
     /c \
     test_base_only.c \
     test_base.c \
-    base/base_io.c \
+    base/io.c \
     base/buddy.c \
     base/arena.c \
     base/scratch.c \
     base/format.c \
-    base/base_math.c \
-    base/base_string.c \
+    base/math.c \
+    base/string.c \
     base/mem.c \
     base/numconv.c \
     base/assert.c \
@@ -174,13 +170,13 @@ link \
     shell32.lib \
     test_base_only.obj \
     test_base.obj \
-    base_io.obj \
+    io.obj \
     buddy.obj \
     arena.obj \
     scratch.obj \
     format.obj \
-    base_math.obj \
-    base_string.obj \
+    math.obj \
+    string.obj \
     mem.obj \
     numconv.obj \
     exit.obj \

@@ -2,7 +2,7 @@
 
 #include <platform/platform.h>
 #include <base/arena.h>
-#include <base/base_string.h>
+#include <base/string.h>
 #include <base/format.h>
 
 // The functions below this comment do not allocate memory (no arenas), so they
