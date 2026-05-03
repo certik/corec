@@ -4,12 +4,18 @@ A minimal, portable core for writing C programs that run unchanged on every
 major platform — Linux, macOS, Windows, and the web (WebAssembly) — without
 depending on the C standard library, the C runtime, or libc.
 
+Every interaction with the host system flows through a single narrow header,
+[`platform/platform.h`](platform/platform.h) (fewer than 20 functions), and
+everything else in the project — and in repositories built on top of it — is
+written against that one interface. Porting to a new host means writing one
+new `platform/platform_<host>.c`.
+
 Everything in this repository is built `-nostdlib -nostdinc -fno-builtin`. The
 project consists of two parts:
 
 * **`platform/`** — the *only* place where the program talks to the host
-  system. A small, curated interface (`platform/platform.h`) is implemented
-  separately for each backend:
+  system. The `platform.h` interface is implemented separately for each
+  backend:
     * Linux — raw syscalls
     * macOS — `libSystem.dylib`
     * Windows — `kernel32.dll`
