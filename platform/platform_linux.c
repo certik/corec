@@ -119,7 +119,7 @@ void platform_exit(int status) {
 // address space but don't commit any physical memory to it initially.
 static void ensure_heap_initialized() {
     if (linux_heap_base == NULL) {
-        // Always use raw syscall on Linux (works with and without external stdlib)
+        // Always use raw syscall on Linux
         long mmap_ret = syscall(
             SYS_MMAP,
             (long)NULL,          // address hint
@@ -164,7 +164,7 @@ void* platform_heap_grow(size_t num_bytes) {
     }
 
     // Use mprotect to make the pages readable and writable, which commits them.
-    // Always use raw syscall on Linux (works with and without external stdlib)
+    // Always use raw syscall on Linux
     long ret = syscall(
         SYS_MPROTECT,
         (long)(linux_heap_base + (committed_pages * PLATFORM_WASM_PAGE_SIZE)),
@@ -195,7 +195,9 @@ float fast_sqrtf(float x) {
     return result;
 }
 
-// Public initialization function for manual use (e.g., SDL apps using external stdlib)
+// Public initialization function for hosts that provide their own entry
+// point (PLATFORM_SKIP_ENTRY); the default _start path below calls this
+// itself.
 void platform_init(int argc, char** argv) {
     stored_argc = argc;
     stored_argv = argv;

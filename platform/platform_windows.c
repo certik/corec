@@ -238,7 +238,9 @@ float fast_sqrtf(float x) {
     return x * y;  // Convert inverse sqrt to sqrt
 }
 
-// Public initialization function for manual use (e.g., SDL apps using external stdlib)
+// Public initialization function for hosts that provide their own entry
+// point (PLATFORM_SKIP_ENTRY); the default _start path below calls this
+// itself.
 void platform_init(int argc, char** argv) {
     init_args();
     ensure_heap_initialized();
