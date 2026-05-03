@@ -67,7 +67,6 @@ __declspec(dllimport) HANDLE __stdcall CreateFileMappingA(HANDLE hFile, void* lp
 __declspec(dllimport) LPVOID __stdcall MapViewOfFile(HANDLE hFileMappingObject, DWORD dwDesiredAccess, DWORD dwFileOffsetHigh, DWORD dwFileOffsetLow, size_t dwNumberOfBytesToMap);
 __declspec(dllimport) int __stdcall UnmapViewOfFile(LPCVOID lpBaseAddress);
 __declspec(dllimport) int __stdcall GetFileSizeEx(HANDLE hFile, LARGE_INTEGER* lpFileSize);
-__declspec(dllimport) int __stdcall SetEndOfFile(HANDLE hFile);
 __declspec(dllimport) void __stdcall Sleep(DWORD dwMilliseconds);
 
 // Our emulated heap state for Windows
@@ -264,21 +263,19 @@ platform_fd_t platform_path_open(const char* path, size_t path_len, uint64_t rig
 
     // Map oflags to Windows creation disposition.
     //
-    // Note on O_TRUNC alone: TRUNCATE_EXISTING has been observed to fail
-    // intermittently on CI runners (e.g. immediately after a CloseHandle on
-    // the same path, sometimes due to AV/indexer handles). To get robust
-    // POSIX-like semantics (open existing, then truncate) we open with
-    // OPEN_EXISTING and explicitly truncate via SetEndOfFile below.
-    int do_truncate = 0;
-    if ((oflags & PLATFORM_O_CREAT) && (oflags & PLATFORM_O_TRUNC)) {
-        creation = CREATE_ALWAYS;  // Create new or truncate existing
+    // Note: we treat O_TRUNC alone the same as O_CREAT|O_TRUNC and use
+    // CREATE_ALWAYS, rather than TRUNCATE_EXISTING. TRUNCATE_EXISTING has
+    // been observed to fail intermittently on CI runners (sharing/scanning
+    // races right after we close the same path). CREATE_ALWAYS reliably
+    // produces the desired end state — a zero-length file open for writing
+    // — and matches POSIX O_TRUNC semantics whenever the file already
+    // exists, which is the normal use case.
+    if (oflags & PLATFORM_O_TRUNC) {
+        creation = CREATE_ALWAYS;  // Create new or truncate existing.
     } else if (oflags & PLATFORM_O_CREAT) {
-        creation = OPEN_ALWAYS;    // Open existing or create new
-    } else if (oflags & PLATFORM_O_TRUNC) {
-        creation = OPEN_EXISTING;  // Open existing, then truncate below.
-        do_truncate = 1;
+        creation = OPEN_ALWAYS;    // Open existing or create new.
     } else {
-        creation = OPEN_EXISTING;  // Open existing file
+        creation = OPEN_EXISTING;  // Open existing file.
     }
 
     HANDLE handle = INVALID_HANDLE_VALUE;
@@ -303,16 +300,6 @@ platform_fd_t platform_path_open(const char* path, size_t path_len, uint64_t rig
 
     if (handle == INVALID_HANDLE_VALUE) {
         return -1;
-    }
-
-    if (do_truncate) {
-        // POSIX O_TRUNC: truncate the file to zero length on open. We need
-        // GENERIC_WRITE for SetEndOfFile to succeed; the caller must have
-        // requested write rights for O_TRUNC to make sense.
-        if (!SetEndOfFile(handle)) {
-            CloseHandle(handle);
-            return -1;
-        }
     }
 
     // Return handle cast to int (platform_fd_t)
