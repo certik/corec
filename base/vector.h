@@ -1,6 +1,6 @@
 #pragma once
 
-#include <base/base_types.h>
+#include <base/types.h>
 #include <base/assert.h>
 #include <base/arena.h>
 #include <base/mem.h>

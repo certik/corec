@@ -1,6 +1,6 @@
 #pragma once
 
-#include <base_types.h>
+#include <base/types.h>
 
 void buddy_init(void);
 

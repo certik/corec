@@ -1,5 +1,5 @@
 #include <platform/platform.h>
-#include <base/base_types.h>
+#include <base/types.h>
 #include <base/buddy.h>
 
 // =============================================================================

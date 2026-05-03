@@ -1,6 +1,6 @@
 #pragma once
 
-#include <base/base_types.h>
+#include <base/types.h>
 
 /*
  * The platform interface: the only way a C program in this project can

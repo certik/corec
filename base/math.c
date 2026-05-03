@@ -1,5 +1,5 @@
-#include <base/base_types.h>
-#include <base/base_math.h>
+#include <base/types.h>
+#include <base/math.h>
 
 static const float S6 = -0.01445205f;
 static const float S5 =  0.09838380f;

@@ -1,5 +1,5 @@
-#include <base/base_types.h>
-#include <base/base_string.h>
+#include <base/types.h>
+#include <base/string.h>
 #include <base/mem.h>
 #include <base/numconv.h>
 

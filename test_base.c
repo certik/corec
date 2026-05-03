@@ -1,4 +1,4 @@
-#include <base/base_io.h>
+#include <base/io.h>
 #include <platform/platform.h>
 #include <base/arena.h>
 #include <base/scratch.h>
@@ -6,8 +6,8 @@
 #include <base/format.h>
 #include <base/hashtable.h>
 #include <base/vector.h>
-#include <base/base_string.h>
-#include <base/base_math.h>
+#include <base/string.h>
+#include <base/math.h>
 #include <base/mem.h>
 #include <base/assert.h>
 #include <test_base.h>

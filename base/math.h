@@ -1,6 +1,6 @@
 #pragma once
 
-#include <base/base_types.h>
+#include <base/types.h>
 
 // We build with -nostdinc / /X, so <math.h> is not available. Define the
 // usual C99 floating-point macros ourselves. The expression

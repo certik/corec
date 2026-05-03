@@ -1,5 +1,5 @@
-#include <base/base_io.h>
-#include <base/base_types.h>
+#include <base/io.h>
+#include <base/types.h>
 #include <base/exit.h>
 #include <base/mem.h>
 #include <base/scratch.h>

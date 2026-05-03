@@ -1,8 +1,8 @@
 #include <base/buddy.h>
 #include <platform/platform.h>
-#include <base/base_types.h>
+#include <base/types.h>
 #include <base/assert.h>
-#include <base/base_io.h>
+#include <base/io.h>
 #include <base/numconv.h>
 #include <base/mem.h>
 #include <base/exit.h>

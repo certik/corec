@@ -1,6 +1,6 @@
 #pragma once
 
-#include <base_types.h>
+#include <base/types.h>
 
 // An opaque data type for the arena allocator.
 typedef struct arena_s Arena;
