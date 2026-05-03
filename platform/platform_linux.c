@@ -24,6 +24,12 @@
 // The implementations are intentionally simple byte loops so the compiler
 // will not turn them back into self-recursive memcpy/memset calls via
 // loop-idiom recognition at higher optimization levels.
+//
+// They are marked weak so a higher layer (for example a C standard library
+// subset that wraps memcpy()/memset() around base_memcpy()/base_memset())
+// can provide its own strong definitions without colliding with these at
+// link time. Code that only links against corec gets these unconditionally.
+__attribute__((weak))
 void* memcpy(void* dest, const void* src, size_t n) {
     unsigned char* d = (unsigned char*)dest;
     const unsigned char* s = (const unsigned char*)src;
@@ -31,6 +37,7 @@ void* memcpy(void* dest, const void* src, size_t n) {
     return dest;
 }
 
+__attribute__((weak))
 void* memset(void* s, int c, size_t n) {
     unsigned char* p = (unsigned char*)s;
     for (size_t i = 0; i < n; i++) p[i] = (unsigned char)c;
