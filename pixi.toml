@@ -194,19 +194,6 @@ test_windows = { cmd="./corec_test_windows.exe", depends-on=["build_windows"] }
 [feature.windows.target.win-64.dependencies]
 # MSVC must be available on PATH (e.g. via vcvars64.bat)
 
-#=============================================================================
-# Aggregates
-#=============================================================================
-[tasks]
-all = { depends-on=["test_wasm", "test_linux"] }
-all_with_macos = { depends-on=["test_wasm", "test_linux", "test_macos"] }
-all_with_windows = { depends-on=["test_wasm", "test_linux", "test_windows"] }
-all_platforms = { depends-on=["test_wasm", "test_linux", "test_macos", "test_windows"] }
-build_all = { depends-on=["build_wasm", "build_linux"] }
-build_all_with_macos = { depends-on=["build_wasm", "build_linux", "build_macos"] }
-build_all_with_windows = { depends-on=["build_wasm", "build_linux", "build_windows"] }
-build_all_platforms = { depends-on=["build_wasm", "build_linux", "build_macos", "build_windows"] }
-
 [dependencies]
 shell = "*"
 
