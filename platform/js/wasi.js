@@ -1,20 +1,55 @@
-// Pure-JS implementation of the small subset of `wasi_snapshot_preview1`
-// imports that Core C programs actually use:
+// =============================================================================
+// platform/js/wasi.js — JS counterpart of platform_wasm.c.
+// =============================================================================
+//
+// platform_wasm.c forwards the Core C platform.h API onto the small set of
+// `wasi_snapshot_preview1` imports listed below. Those imports are not
+// defined inside the `.wasm` — whoever loads the module must supply them.
+// `wasmtime` is one such runtime (in Rust, talks to the host OS). This
+// file is another: a pure-JS implementation of the same nine imports, so
+// the same `corec_test.wasm` artifact can run unmodified in Node.js and
+// in any modern browser.
+//
+// Imports implemented (matching platform/platform_wasm.c):
 //
 //   args_sizes_get, args_get,
 //   fd_write, fd_read, fd_close, fd_seek, fd_tell,
 //   path_open,
 //   proc_exit
 //
-// This file is the Core C "browser/JS platform". It contains no DOM, no
-// filesystem, and no Node-specific code. A host runner (run_node.js,
-// run_browser.js, ...) plugs in its own argv / stdin / stdout / stderr /
-// filesystem implementations through the `io` object and reuses the same
-// marshalling logic here.
+// What this file is responsible for:
 //
-// All multi-byte values are little-endian (the WASM ABI). Strings are UTF-8.
-// 64-bit integer arguments arrive as JS BigInt (the default since Node 16
-// and modern browsers).
+//   * Marshalling between the WASI ABI (linear memory, little-endian,
+//     UTF-8, BigInt for i64) and an abstract host-friendly `io` object.
+//   * Reading/writing iovec arrays, decoding paths (which are *not*
+//     null-terminated), encoding argv into the argv_buf layout, etc.
+//   * Translating `proc_exit` into a thrown `ProcExit` so the host can
+//     catch it and report the status code.
+//
+// What this file is NOT responsible for:
+//
+//   * Real I/O. There is no DOM, no `node:fs`, no network. The host
+//     supplies all that through `io` (see makeWasi below).
+//
+// Usage: a host builds an `io = { argv, stdin, stdout, stderr, fs }`
+// object, then:
+//
+//     const wasi = makeWasi(io);
+//     const { instance } = await WebAssembly.instantiate(bytes, wasi.imports);
+//     wasi.setMemory(instance.exports.memory);
+//     try { instance.exports._start(); }
+//     catch (e) { if (e instanceof ProcExit) status = e.status; else throw e; }
+//
+// `makeMemoryFS()` is a helper for hosts (e.g. the browser) that don't
+// have a real filesystem and want a small in-memory one for `path_open`.
+//
+// Concrete sample hosts that consume this module live in examples/js/
+// (run_node.js for Node.js, index.html for the browser).
+//
+// All multi-byte values are little-endian (the WASM ABI). Strings are
+// UTF-8. 64-bit integer arguments arrive as JS BigInt (the default
+// since Node 16 and modern browsers).
+// =============================================================================
 
 const ENCODER = new TextEncoder();
 const DECODER = new TextDecoder();
