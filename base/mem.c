@@ -1,11 +1,16 @@
 #include <base/mem.h>
 
-// memset() is declared here (not just base_memset) because the compiler
-// can implicitly insert calls to memset() for struct initialization
-// (e.g., "FormatSpec fs = {...}") even when compiled with -fno-builtin.
-// This provides the symbol the linker needs in nostdlib builds.
+// memset() and memcpy() are declared here (not just base_memset/base_memcpy)
+// because the compiler can implicitly insert calls to them for struct
+// initialization / struct assignment (e.g., "FormatSpec fs = {...}", or
+// passing/returning structs by value) even when compiled with -fno-builtin.
+// These provide the symbols the linker needs in nostdlib builds.
 void* memset(void* s, int c, size_t n) {
     return base_memset(s, c, n);
+}
+
+void* memcpy(void* dest, const void* src, size_t n) {
+    return base_memcpy(dest, src, n);
 }
 
 size_t base_strlen(const char* str) {
