@@ -68,6 +68,7 @@ __declspec(dllimport) LPVOID __stdcall MapViewOfFile(HANDLE hFileMappingObject, 
 __declspec(dllimport) int __stdcall UnmapViewOfFile(LPCVOID lpBaseAddress);
 __declspec(dllimport) int __stdcall GetFileSizeEx(HANDLE hFile, LARGE_INTEGER* lpFileSize);
 __declspec(dllimport) int __stdcall SetEndOfFile(HANDLE hFile);
+__declspec(dllimport) void __stdcall Sleep(DWORD dwMilliseconds);
 
 // Our emulated heap state for Windows
 static uint8_t* windows_heap_base = NULL;
@@ -280,15 +281,25 @@ platform_fd_t platform_path_open(const char* path, size_t path_len, uint64_t rig
         creation = OPEN_EXISTING;  // Open existing file
     }
 
-    HANDLE handle = CreateFileA(
-        path,
-        access,
-        FILE_SHARE_READ | FILE_SHARE_WRITE,
-        NULL,
-        creation,
-        0,
-        NULL
-    );
+    HANDLE handle = INVALID_HANDLE_VALUE;
+    // Retry CreateFileA briefly to tolerate transient sharing violations on
+    // Windows. After we close a file, an antivirus or the search indexer can
+    // briefly open it with restrictive share modes, causing our next open of
+    // the same path to fail with ERROR_SHARING_VIOLATION. The window is
+    // typically a few milliseconds.
+    for (int attempt = 0; attempt < 20; attempt++) {
+        handle = CreateFileA(
+            path,
+            access,
+            FILE_SHARE_READ | FILE_SHARE_WRITE,
+            NULL,
+            creation,
+            0,
+            NULL
+        );
+        if (handle != INVALID_HANDLE_VALUE) break;
+        Sleep(50);
+    }
 
     if (handle == INVALID_HANDLE_VALUE) {
         return -1;
