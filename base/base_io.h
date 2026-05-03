@@ -31,7 +31,6 @@ void writeln_int(int fd, char* text, int n);
 // Prints text with location information, appends '\n'
 void writeln_loc(int fd, const char *text, const char *file, unsigned int line, const char *function);
 
-#define array_size(a) (sizeof(a) / sizeof((a)[0]))
 #define PRINT_ERR(x) writeln_loc(PLATFORM_STDERR_FD, (x), __FILE__, __LINE__, __func__)
 
 // The functions below allocate via arenas/scratch and depend on more of base/.
