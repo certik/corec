@@ -47,6 +47,11 @@ static inline double base_round(double x) {
 }
 
 // Fast single-precision trigonometric functions
-float fast_sin(float x);
-float fast_cos(float x);
-float fast_tan(float x);
+float fast_sinf(float x);
+float fast_cosf(float x);
+float fast_tanf(float x);
+
+// Fast square-root functions (declared in platform.h, repeated here for
+// discoverability alongside the other math primitives).
+double fast_sqrt(double x);
+float fast_sqrtf(float x);

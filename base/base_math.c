@@ -49,7 +49,7 @@ static inline void reduce_to_quarter(float x, float* y, float* sin_sign, float* 
     }
 }
 
-float fast_sin(float x) {
+float fast_sinf(float x) {
     if (x == 0.0f) return 0.0f;
     float y, sin_s, cos_s;
     reduce_to_quarter(x, &y, &sin_s, &cos_s);
@@ -58,7 +58,7 @@ float fast_sin(float x) {
     return sin_s * sy;
 }
 
-float fast_cos(float x) {
+float fast_cosf(float x) {
     if (x == 0.0f) return 1.0f;
     float y, sin_s, cos_s;
     reduce_to_quarter(x, &y, &sin_s, &cos_s);
@@ -67,9 +67,9 @@ float fast_cos(float x) {
     return cos_s * cy;
 }
 
-float fast_tan(float x) {
-    float s = fast_sin(x);
-    float c = fast_cos(x);
+float fast_tanf(float x) {
+    float s = fast_sinf(x);
+    float c = fast_cosf(x);
     if (c == 0.0f) {
         return (s < 0.0f ? -INFINITY : INFINITY);
     }

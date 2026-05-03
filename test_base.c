@@ -4,10 +4,10 @@
 #include <base/scratch.h>
 #include <base/buddy.h>
 #include <base/format.h>
-#include <base/io.h>
 #include <base/hashtable.h>
 #include <base/vector.h>
 #include <base/base_string.h>
+#include <base/base_math.h>
 #include <base/mem.h>
 #include <base/assert.h>
 #include <test_base.h>
@@ -111,7 +111,7 @@ static void test_nested_scratch_outer(bool avoid_conflict) {
 }
 
 void test_platform_heap(void) {
-    print("## Testing WASI heap operations...\n");
+    print("## Testing platform heap operations...\n");
     void* hb = platform_heap_base();
     print("heap_base set\n");
 
@@ -129,7 +129,61 @@ void test_platform_heap(void) {
 
     ms2 = platform_heap_size();
     assert(ms1 + (4+8)*PLATFORM_WASM_PAGE_SIZE == ms2);
-    print("WASI heap tests passed\n");
+    print("platform heap tests passed\n");
+}
+
+static bool float_close(float a, float b, float tol) {
+    float d = a - b;
+    if (d < 0) d = -d;
+    return d <= tol;
+}
+
+static bool double_close(double a, double b, double tol) {
+    double d = a - b;
+    if (d < 0) d = -d;
+    return d <= tol;
+}
+
+void test_math(void) {
+    print("## Testing math functions...\n");
+
+    // fast_sqrt / fast_sqrtf
+    assert(double_close(fast_sqrt(0.0),  0.0,  1e-12));
+    assert(double_close(fast_sqrt(1.0),  1.0,  1e-12));
+    assert(double_close(fast_sqrt(4.0),  2.0,  1e-12));
+    assert(double_close(fast_sqrt(2.0),  1.41421356237, 1e-9));
+    assert(double_close(fast_sqrt(1e6),  1000.0, 1e-6));
+
+    assert(float_close(fast_sqrtf(0.0f), 0.0f, 1e-6f));
+    assert(float_close(fast_sqrtf(1.0f), 1.0f, 1e-6f));
+    assert(float_close(fast_sqrtf(9.0f), 3.0f, 1e-6f));
+    assert(float_close(fast_sqrtf(2.0f), 1.41421356f, 1e-5f));
+
+    // fast_sinf
+    const float PI = 3.14159265358979323846f;
+    assert(float_close(fast_sinf(0.0f),       0.0f, 1e-4f));
+    assert(float_close(fast_sinf(PI),         0.0f, 1e-3f));
+    assert(float_close(fast_sinf(PI * 0.5f),  1.0f, 1e-4f));
+    assert(float_close(fast_sinf(-PI * 0.5f),-1.0f, 1e-4f));
+    assert(float_close(fast_sinf(PI * 0.25f), 0.70710678f, 1e-3f));
+
+    // fast_cosf
+    assert(float_close(fast_cosf(0.0f),       1.0f, 1e-4f));
+    assert(float_close(fast_cosf(PI),        -1.0f, 1e-3f));
+    assert(float_close(fast_cosf(PI * 0.5f),  0.0f, 1e-3f));
+    assert(float_close(fast_cosf(PI * 0.25f), 0.70710678f, 1e-3f));
+
+    // fast_tanf
+    assert(float_close(fast_tanf(0.0f),       0.0f, 1e-4f));
+    assert(float_close(fast_tanf(PI * 0.25f), 1.0f, 1e-3f));
+    assert(float_close(fast_tanf(-PI * 0.25f),-1.0f, 1e-3f));
+
+    // Periodicity / range reduction
+    assert(float_close(fast_sinf(2.0f * PI), 0.0f, 1e-3f));
+    assert(float_close(fast_cosf(2.0f * PI), 1.0f, 1e-3f));
+    assert(float_close(fast_sinf(10.0f * PI + PI * 0.5f), 1.0f, 1e-2f));
+
+    print("math tests passed\n");
 }
 
 void test_buddy(void) {
@@ -1110,6 +1164,7 @@ void test_base(void) {
     print("=== base tests ===\n");
 
     test_platform_heap();
+    test_math();
     test_buddy();
     test_arena();
     test_scratch();
