@@ -59,6 +59,13 @@ arena_pos_t arena_get_pos(Arena *arena);
  * This invalidates all allocations made since the position was saved,
  * making that memory available for new allocations.
  *
+ * Chunks allocated after the saved position are NOT freed. They remain
+ * linked via the chunk list and will be reused by subsequent allocations:
+ * once the restored chunk fills up again, arena_alloc walks the existing
+ * `next` pointers and bump-allocates from those already-allocated chunks
+ * before requesting new memory from the buddy allocator. The chunks are
+ * only released when arena_free is called.
+ *
  * @param arena A pointer to the arena.
  * @param pos The saved position to restore.
  */
