@@ -45,9 +45,9 @@ clang \
     "test_base_only.c", "test_base.c", "test_base.h",
     "base/**/*.c", "base/**/*.h",
     "platform/platform_wasm.c", "platform/platform.h",
-], outputs = ["corec_test.wasm"] }
+], outputs = ["corec_test.wasm"], description = "Build corec_test.wasm (wasm32-wasi target)" }
 
-test_wasm = { cmd="wasmtime --dir . corec_test.wasm", depends-on=["build_wasm"] }
+test_wasm = { cmd = "wasmtime --dir . corec_test.wasm", depends-on = ["build_wasm"], description = "Run corec_test.wasm under wasmtime" }
 
 [feature.wasm.dependencies]
 clang = ">=20.1.4,<21"
@@ -58,8 +58,8 @@ wasmtime = ">=38.0.3,<39"
 # JavaScript host (Node + browser) — runs the same corec_test.wasm
 #=============================================================================
 [feature.js.tasks]
-test_node = { cmd="node examples/js/run_node.js corec_test.wasm", depends-on=["build_wasm"] }
-serve_browser = { cmd="python -m http.server 8000", depends-on=["build_wasm"] }
+test_node = { cmd = "node examples/js/run_node.js corec_test.wasm", depends-on = ["build_wasm"], description = "Run corec_test.wasm under Node.js (examples/js/run_node.js)" }
+serve_browser = { cmd = "python -m http.server 8000", depends-on = ["build_wasm"], description = "Serve repo on :8000 so examples/js/index.html can run corec_test.wasm in a browser" }
 
 [feature.js.dependencies]
 nodejs = ">=22"
@@ -69,7 +69,7 @@ python = ">=3.10"
 # Linux
 #=============================================================================
 [feature.linux.tasks]
-build_linux = """
+build_linux = { cmd = """
 clang \
     -nostdlib \
     -nostdinc \
@@ -92,9 +92,9 @@ clang \
     base/assert.c \
     base/exit.c \
     platform/platform_linux.c
-"""
+""", description = "Build corec_test_linux native binary (Linux only)" }
 
-test_linux = { cmd="./corec_test_linux", depends-on=["build_linux"] }
+test_linux = { cmd = "./corec_test_linux", depends-on = ["build_linux"], description = "Run corec_test_linux native test binary" }
 
 [feature.linux.target.linux-64.dependencies]
 clang = ">=20.1.4,<21"
@@ -103,7 +103,7 @@ clang = ">=20.1.4,<21"
 # macOS
 #=============================================================================
 [feature.macos.tasks]
-build_macos = """
+build_macos = { cmd = """
 clang \
     -g \
     -nostdlib \
@@ -129,15 +129,15 @@ clang \
     platform/platform_macos.c \
     -lSystem \
     -Wl,-e,__start
-"""
+""", description = "Build corec_test_macos native binary (macOS only)" }
 
-test_macos = { cmd="./corec_test_macos", depends-on=["build_macos"] }
+test_macos = { cmd = "./corec_test_macos", depends-on = ["build_macos"], description = "Run corec_test_macos native test binary" }
 
 #=============================================================================
 # Windows
 #=============================================================================
 [feature.windows.tasks]
-build_windows = """
+build_windows = { cmd = """
 cl \
     /nologo \
     /X \
@@ -187,9 +187,9 @@ link \
     assert.obj \
     platform_windows.obj \
     /out:corec_test_windows.exe
-"""
+""", description = "Build corec_test_windows.exe native binary (Windows only; requires MSVC vcvars64)" }
 
-test_windows = { cmd="./corec_test_windows.exe", depends-on=["build_windows"] }
+test_windows = { cmd = "./corec_test_windows.exe", depends-on = ["build_windows"], description = "Run corec_test_windows.exe native test binary" }
 
 [feature.windows.target.win-64.dependencies]
 # MSVC must be available on PATH (e.g. via vcvars64.bat)
