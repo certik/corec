@@ -51,7 +51,7 @@ const io = {
                      : wantWrite             ? FS.O_WRONLY
                                              : FS.O_RDONLY;
             if (oflags & PLATFORM_O_CREAT) flag |= FS.O_CREAT;
-            if (oflags & PLATFORM_O_TRUNC) flag |= FS.O_TRUNC;
+            if (oflags & PLATFORM_O_TRUNC) flag |= FS.O_TRUNC | FS.O_CREAT;
             try {
                 const nodeFd = openSync(path, flag, 0o644);
                 const fd = nextFd++;
