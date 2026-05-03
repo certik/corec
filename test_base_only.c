@@ -1,4 +1,4 @@
-#include <base/io.h>
+#include <base/base_io.h>
 #include <test_base.h>
 
 // Test runner that only depends on base/ - no stdlib/ dependencies

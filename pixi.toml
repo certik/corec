@@ -34,7 +34,7 @@ clang \
     base/arena.c \
     base/scratch.c \
     base/format.c \
-    base/io.c \
+    base/base_math.c \
     base/base_string.c \
     base/mem.c \
     base/numconv.c \
@@ -85,7 +85,7 @@ clang \
     base/arena.c \
     base/scratch.c \
     base/format.c \
-    base/io.c \
+    base/base_math.c \
     base/base_string.c \
     base/mem.c \
     base/numconv.c \
@@ -120,7 +120,7 @@ clang \
     base/arena.c \
     base/scratch.c \
     base/format.c \
-    base/io.c \
+    base/base_math.c \
     base/base_string.c \
     base/mem.c \
     base/numconv.c \
@@ -157,7 +157,7 @@ cl \
     base/arena.c \
     base/scratch.c \
     base/format.c \
-    base/io.c \
+    base/base_math.c \
     base/base_string.c \
     base/mem.c \
     base/numconv.c \
@@ -179,7 +179,7 @@ link \
     arena.obj \
     scratch.obj \
     format.obj \
-    io.obj \
+    base_math.obj \
     base_string.obj \
     mem.obj \
     numconv.obj \
