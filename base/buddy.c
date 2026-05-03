@@ -475,14 +475,6 @@ void *buddy_alloc(size_t size, size_t *actual_size) {
         }
     }
 
-    static int large_alloc_log_count = 0;
-    if (order >= 7 && large_alloc_log_count < 20) {
-        large_alloc_log_count++;
-        writeln_int(PLATFORM_STDERR_FD, "[buddy_alloc] large request bytes =", size_with_header);
-        writeln_int(PLATFORM_STDERR_FD, "[buddy_alloc] order =", order);
-        writeln_int(PLATFORM_STDERR_FD, "[buddy_alloc] committed MiB =", platform_heap_size() >> 20);
-    }
-
     // If caller wants to know the actual size, calculate it
     if (actual_size) {
         *actual_size = block_size - sizeof(struct buddy_block);

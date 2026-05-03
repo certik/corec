@@ -65,10 +65,12 @@ string char_to_string(Arena *arena, char c) {
 }
 
 string str_concat(Arena *arena, string a, string b) {
-    char *str = arena_alloc_array(arena, char, a.size + b.size);
+    size_t total = a.size + b.size;
+    if (total == 0) return (string){NULL, 0};
+    char *str = arena_alloc_array(arena, char, total);
     base_memcpy(str, a.str, a.size);
     base_memcpy(str + a.size, b.str, b.size);
-    return (string){str, a.size + b.size};
+    return (string){str, total};
 }
 
 string str_copy(Arena *arena, string a) {
