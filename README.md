@@ -88,14 +88,7 @@ pixi run -e js serve_browser   # starts http.server on :8000
 The page provides text inputs for argv and stdin, mirrors stdout/stderr to
 `<pre>` panels and to the JS console, and shows the program's exit code.
 
-Aggregates:
-
-```bash
-pixi run all                    # Linux + WASM
-pixi run all_with_macos         # + macOS
-pixi run all_with_windows       # + Windows
-pixi run all_platforms          # all four
-```
+Run `pixi task list` to see all available tasks with descriptions.
 
 ## Layout
 
@@ -114,5 +107,6 @@ pixi run all_platforms          # all four
 
 ## Continuous Integration
 
-GitHub Actions runs the full test suite on Linux, macOS, Windows, and
-WebAssembly on every push and PR — see `.github/workflows/CI.yml`.
+GitHub Actions runs the full test suite — native binary, WebAssembly via
+`wasmtime`, and the same `.wasm` under Node.js — on Linux, macOS, and Windows
+on every push and PR. See `.github/workflows/CI.yml`.
