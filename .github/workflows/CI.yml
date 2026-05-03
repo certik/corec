@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux
+            os: ubuntu-latest
+            pixi-command: |
+              pixi run -e linux test_linux a1 b2 c3
+              echo "test input data" | pixi run -e linux ./corec_test_linux --test-input
+              pixi run -e wasm test_wasm a1 b2 c3
+              echo "test input data" | pixi run -e wasm wasmtime --dir . corec_test.wasm --test-input
+          - platform: macos
+            os: macos-latest
+            pixi-command: |
+              pixi run -e macos test_macos a1 b2 c3
+              echo "test input data" | pixi run -e macos ./corec_test_macos --test-input
+              pixi run -e wasm test_wasm a1 b2 c3
+              echo "test input data" | pixi run -e wasm wasmtime --dir . corec_test.wasm --test-input
+          - platform: windows
+            os: windows-latest
+            pixi-command: |
+              call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat" || exit /b 1
+              pixi run -e windows test_windows a1 b2 c3 || exit /b 1
+              pixi run shell -c "printf 'test input data' | pixi run -e windows ./corec_test_windows.exe --test-input" || exit /b 1
+              pixi run -e wasm test_wasm a1 b2 c3 || exit /b 1
+              pixi run shell -c "printf 'test input data' | pixi run -e wasm wasmtime --dir . corec_test.wasm --test-input" || exit /b 1
+          - platform: wasm
+            os: ubuntu-latest
+            pixi-command: |
+              pixi run -e wasm test_wasm a1 b2 c3
+              echo "test input data" | pixi run -e wasm wasmtime --dir . corec_test.wasm --test-input
+
+    runs-on: ${{ matrix.os }}
+    name: Test ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: prefix-dev/setup-pixi@v0.9.3
+        with:
+          pixi-version: v0.65.0
+          cache: true
+
+      - name: Build and test ${{ matrix.platform }}
+        if: matrix.platform != 'windows'
+        run: ${{ matrix.pixi-command }}
+
+      - name: Build and test ${{ matrix.platform }}
+        if: matrix.platform == 'windows'
+        run: ${{ matrix.pixi-command }}
+        shell: cmd
