@@ -59,7 +59,7 @@ wasmtime = ">=38.0.3,<39"
 #=============================================================================
 [feature.js.tasks]
 test_node = { cmd = "node examples/js/run_node.js corec_test.wasm", depends-on = ["build_wasm"], description = "Run corec_test.wasm under Node.js (examples/js/run_node.js)" }
-serve_browser = { cmd = "python -m http.server 8000", depends-on = ["build_wasm"], description = "Serve repo on :8000 so examples/js/index.html can run corec_test.wasm in a browser" }
+serve_browser = { cmd = "echo 'Open http://localhost:8000/examples/js/index.html' && python -m http.server 8000", depends-on = ["build_wasm"], description = "Serve repo on :8000 so examples/js/index.html can run corec_test.wasm in a browser" }
 
 [feature.js.dependencies]
 nodejs = ">=22"
