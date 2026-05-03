@@ -1,0 +1,203 @@
+[workspace]
+authors = ["Ondřej Čertík <ondrej@certik.us>"]
+channels = [
+    "https://prefix.dev/certik-forge",
+    "conda-forge",
+]
+name = "corec"
+platforms = ["osx-arm64", "linux-64", "win-64"]
+version = "0.1.0"
+
+#=============================================================================
+# WebAssembly (WASI)
+#=============================================================================
+[feature.wasm.tasks]
+build_wasm = """
+clang \
+    --target=wasm32-wasi \
+    -Os \
+    -nostdlib \
+    -nostdinc \
+    -fno-builtin \
+    -I base \
+    -I platform \
+    -I . \
+    -Wl,--no-entry \
+    -Wl,--export=__heap_base \
+    -Wl,--export=_start \
+    -Wl,--initial-memory=131072 \
+    -o corec_test.wasm \
+    test_base_only.c \
+    test_base.c \
+    base/base_io.c \
+    base/buddy.c \
+    base/arena.c \
+    base/scratch.c \
+    base/format.c \
+    base/io.c \
+    base/base_string.c \
+    base/mem.c \
+    base/numconv.c \
+    base/assert.c \
+    base/exit.c \
+    platform/platform_wasm.c
+"""
+
+test_wasm = { cmd="wasmtime --dir . corec_test.wasm", depends-on=["build_wasm"] }
+
+[feature.wasm.dependencies]
+clang = ">=20.1.4,<21"
+lld = ">=20.1.4,<21"
+wasmtime = ">=38.0.3,<39"
+
+#=============================================================================
+# Linux
+#=============================================================================
+[feature.linux.tasks]
+build_linux = """
+clang \
+    -nostdlib \
+    -nostdinc \
+    -fno-builtin \
+    -I base \
+    -I platform \
+    -I . \
+    -o corec_test_linux \
+    test_base_only.c \
+    test_base.c \
+    base/base_io.c \
+    base/buddy.c \
+    base/arena.c \
+    base/scratch.c \
+    base/format.c \
+    base/io.c \
+    base/base_string.c \
+    base/mem.c \
+    base/numconv.c \
+    base/assert.c \
+    base/exit.c \
+    platform/platform_linux.c
+"""
+
+test_linux = { cmd="./corec_test_linux", depends-on=["build_linux"] }
+
+[feature.linux.target.linux-64.dependencies]
+clang = ">=20.1.4,<21"
+
+#=============================================================================
+# macOS
+#=============================================================================
+[feature.macos.tasks]
+build_macos = """
+clang \
+    -g \
+    -nostdlib \
+    -nostdinc \
+    -fno-builtin \
+    -I base \
+    -I platform \
+    -I . \
+    -o corec_test_macos \
+    test_base_only.c \
+    test_base.c \
+    base/base_io.c \
+    base/buddy.c \
+    base/arena.c \
+    base/scratch.c \
+    base/format.c \
+    base/io.c \
+    base/base_string.c \
+    base/mem.c \
+    base/numconv.c \
+    base/assert.c \
+    base/exit.c \
+    platform/platform_macos.c \
+    -lSystem \
+    -Wl,-e,__start
+"""
+
+test_macos = { cmd="./corec_test_macos", depends-on=["build_macos"] }
+
+#=============================================================================
+# Windows
+#=============================================================================
+[feature.windows.tasks]
+build_windows = """
+cl \
+    /nologo \
+    /X \
+    /std:c11 \
+    /Zc:preprocessor \
+    /I"base" \
+    /I"platform" \
+    /I"." \
+    /GS- \
+    /Gs0 \
+    /kernel \
+    /c \
+    test_base_only.c \
+    test_base.c \
+    base/base_io.c \
+    base/buddy.c \
+    base/arena.c \
+    base/scratch.c \
+    base/format.c \
+    base/io.c \
+    base/base_string.c \
+    base/mem.c \
+    base/numconv.c \
+    base/assert.c \
+    base/exit.c \
+    platform/platform_windows.c \
+    && \
+link \
+    /nologo \
+    /subsystem:console \
+    /nodefaultlib \
+    /entry:_start \
+    kernel32.lib \
+    shell32.lib \
+    test_base_only.obj \
+    test_base.obj \
+    base_io.obj \
+    buddy.obj \
+    arena.obj \
+    scratch.obj \
+    format.obj \
+    io.obj \
+    base_string.obj \
+    mem.obj \
+    numconv.obj \
+    exit.obj \
+    assert.obj \
+    platform_windows.obj \
+    /out:corec_test_windows.exe
+"""
+
+test_windows = { cmd="./corec_test_windows.exe", depends-on=["build_windows"] }
+
+[feature.windows.target.win-64.dependencies]
+# MSVC must be available on PATH (e.g. via vcvars64.bat)
+
+#=============================================================================
+# Aggregates
+#=============================================================================
+[tasks]
+all = { depends-on=["test_wasm", "test_linux"] }
+all_with_macos = { depends-on=["test_wasm", "test_linux", "test_macos"] }
+all_with_windows = { depends-on=["test_wasm", "test_linux", "test_windows"] }
+all_platforms = { depends-on=["test_wasm", "test_linux", "test_macos", "test_windows"] }
+build_all = { depends-on=["build_wasm", "build_linux"] }
+build_all_with_macos = { depends-on=["build_wasm", "build_linux", "build_macos"] }
+build_all_with_windows = { depends-on=["build_wasm", "build_linux", "build_windows"] }
+build_all_platforms = { depends-on=["build_wasm", "build_linux", "build_macos", "build_windows"] }
+
+[dependencies]
+shell = "*"
+
+[environments]
+default = { solve-group = "default" }
+wasm = ["wasm"]
+linux = { features = ["linux"], solve-group = "linux" }
+macos = { features = ["macos"], solve-group = "macos" }
+windows = { features = ["windows"], solve-group = "windows" }
