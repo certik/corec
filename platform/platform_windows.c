@@ -1,6 +1,6 @@
-#include <platform.h>
-#include <base_types.h>
-#include <buddy.h>
+#include <platform/platform.h>
+#include <base/base_types.h>
+#include <base/buddy.h>
 
 // =============================================================================
 // == Windows Implementation (MSVC)
