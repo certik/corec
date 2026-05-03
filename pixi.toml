@@ -45,10 +45,16 @@ clang \
 
 test_wasm = { cmd="wasmtime --dir . corec_test.wasm", depends-on=["build_wasm"] }
 
+test_node = { cmd="node platform/js/run_node.js corec_test.wasm", depends-on=["build_wasm"] }
+
+serve_browser = { cmd="python -m http.server 8000", depends-on=["build_wasm"] }
+
 [feature.wasm.dependencies]
 clang = ">=20.1.4,<21"
 lld = ">=20.1.4,<21"
 wasmtime = ">=38.0.3,<39"
+nodejs = ">=22"
+python = ">=3.10"
 
 #=============================================================================
 # Linux

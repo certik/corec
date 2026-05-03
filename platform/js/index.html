@@ -1,0 +1,152 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Core C — browser runner</title>
+<style>
+    body { font-family: system-ui, sans-serif; margin: 1em; max-width: 60em; }
+    h1 { font-size: 1.4em; }
+    .row { margin: 0.6em 0; }
+    label { display: block; font-weight: bold; margin-bottom: 0.2em; }
+    input[type=text], textarea {
+        width: 100%; box-sizing: border-box;
+        font-family: ui-monospace, monospace;
+    }
+    textarea { height: 4em; }
+    button { padding: 0.4em 1em; font-size: 1em; }
+    pre {
+        background: #111; color: #e0e0e0; padding: 0.6em; min-height: 2em;
+        overflow: auto; white-space: pre-wrap;
+    }
+    pre.stderr { background: #2a1010; color: #ffd0d0; }
+    #exit { font-family: ui-monospace, monospace; }
+</style>
+
+<h1>Core C — browser runner</h1>
+
+<p>
+    Runs a Core C <code>.wasm</code> program (default
+    <code>corec_test.wasm</code>) inside this page. The page implements the
+    same <code>wasi_snapshot_preview1</code> imports as
+    <code>wasmtime</code> and <code>node</code>, so the same binary runs
+    everywhere.
+</p>
+
+<div class="row">
+    <label for="wasm">Program (URL of <code>.wasm</code>):</label>
+    <input id="wasm" type="text" value="../../corec_test.wasm">
+</div>
+<div class="row">
+    <label for="argv">Arguments (space-separated; also takeable from
+    <code>?args=...</code>):</label>
+    <input id="argv" type="text" placeholder="a1 b2 c3">
+</div>
+<div class="row">
+    <label for="stdin">Standard input (use <code>--test-input</code> in
+    args to make the program consume it):</label>
+    <textarea id="stdin" placeholder="(blank = no stdin)"></textarea>
+</div>
+<div class="row">
+    <label for="preload">Preload files (comma-separated URLs, fetched into
+    the in-memory FS):</label>
+    <input id="preload" type="text" value="README.md">
+</div>
+<div class="row">
+    <button id="run">Run</button>
+    <span id="exit"></span>
+</div>
+
+<div class="row">
+    <label>stdout</label>
+    <pre id="stdout"></pre>
+</div>
+<div class="row">
+    <label>stderr</label>
+    <pre class="stderr" id="stderr"></pre>
+</div>
+
+<script type="module">
+import { makeWasi, makeMemoryFS, ProcExit } from "./wasi.js";
+
+const $ = id => document.getElementById(id);
+
+const params = new URLSearchParams(location.search);
+if (params.has("args")) $("argv").value = params.get("args");
+if (params.has("preload")) $("preload").value = params.get("preload");
+
+const decoder = new TextDecoder();
+
+function appendTo(el, bytes) {
+    el.textContent += decoder.decode(bytes, { stream: true });
+}
+
+function setExit(status) {
+    $("exit").textContent = `exit: ${status}`;
+    document.title = `exit:${status}`;
+}
+
+$("run").addEventListener("click", async () => {
+    $("stdout").textContent = "";
+    $("stderr").textContent = "";
+    $("exit").textContent = "running...";
+    document.title = "running";
+
+    const wasmUrl = $("wasm").value;
+    const userArgs = $("argv").value.trim().length
+        ? $("argv").value.trim().split(/\s+/) : [];
+    const argv = [wasmUrl.split("/").pop(), ...userArgs];
+
+    const stdinBytes = new TextEncoder().encode($("stdin").value);
+    let stdinPos = 0;
+
+    const initial = {};
+    const preloadList = $("preload").value.split(",")
+        .map(s => s.trim()).filter(Boolean);
+    for (const name of preloadList) {
+        try {
+            const r = await fetch("../../" + name);
+            if (!r.ok) throw new Error(`${r.status}`);
+            initial[name] = new Uint8Array(await r.arrayBuffer());
+        } catch (e) {
+            $("stderr").textContent +=
+                `[host] preload "${name}" failed: ${e.message || e}\n`;
+        }
+    }
+
+    const fs = makeMemoryFS(initial);
+    const io = {
+        argv,
+        stdin: { read(max) {
+            const slice = stdinBytes.subarray(stdinPos, stdinPos + max);
+            stdinPos += slice.length;
+            return slice;
+        }},
+        stdout: { write(b) {
+            appendTo($("stdout"), b);
+            console.log(decoder.decode(b, { stream: true }));
+        }},
+        stderr: { write(b) {
+            appendTo($("stderr"), b);
+            console.error(decoder.decode(b, { stream: true }));
+        }},
+        fs,
+    };
+
+    const wasi = makeWasi(io);
+    try {
+        const resp = await fetch(wasmUrl);
+        if (!resp.ok) throw new Error(`fetch ${wasmUrl}: ${resp.status}`);
+        const { instance } =
+            await WebAssembly.instantiateStreaming(resp, wasi.imports);
+        wasi.setMemory(instance.exports.memory);
+        try {
+            instance.exports._start();
+            setExit(0);
+        } catch (e) {
+            if (e instanceof ProcExit) setExit(e.status);
+            else throw e;
+        }
+    } catch (e) {
+        $("stderr").textContent += "\n[host] " + (e && e.stack || e) + "\n";
+        setExit(-1);
+    }
+});
+</script>

@@ -68,8 +68,23 @@ All builds are driven by [pixi](https://pixi.sh).
 pixi run -e linux   test_linux       # Linux native
 pixi run -e macos   test_macos       # macOS native (on macOS only)
 pixi run -e windows test_windows     # Windows native (on Windows only, MSVC)
-pixi run -e wasm    test_wasm        # WebAssembly (uses wasmtime)
+pixi run -e wasm    test_wasm        # WebAssembly via wasmtime
+pixi run -e wasm    test_node        # same .wasm, run via Node.js
 ```
+
+The same `corec_test.wasm` runs in `wasmtime`, in Node, and in any modern
+browser. The browser/Node host implements the `wasi_snapshot_preview1`
+imports in pure JavaScript — see `platform/js/`.
+
+To try the browser runner locally:
+
+```bash
+pixi run -e wasm serve_browser   # starts http.server on :8000
+# then open http://localhost:8000/platform/js/index.html
+```
+
+The page provides text inputs for argv and stdin, mirrors stdout/stderr to
+`<pre>` panels and to the JS console, and shows the program's exit code.
 
 Aggregates:
 
@@ -85,6 +100,10 @@ pixi run all_platforms          # all four
 * `platform/platform.h` — the platform-independent system interface.
 * `platform/platform_{linux,macos,windows,wasm}.c` — per-backend
   implementations.
+* `platform/js/` — JS host that implements the `wasi_snapshot_preview1`
+  imports (`wasi.js`), plus a Node.js runner (`run_node.js`) and a
+  browser page (`index.html`). The same `.wasm` artifact runs under
+  `wasmtime`, under `node`, and in the browser.
 * `base/` — self-contained utilities built on top of `platform.h`.
 * `test_base.c`, `test_base.h`, `test_base_only.c` — the test suite that
   exercises `base/` and the platform layer on every backend.
