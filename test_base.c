@@ -683,8 +683,8 @@ void test_file_flags(void) {
     const char* test_content = "Hello, World!";
     const char* new_content = "Updated!";
 
-    // Test 1: WRONLY | CREAT - Create new file and write
-    println(str_lit("Test 1: PLATFORM_O_WRONLY | PLATFORM_O_CREAT"));
+    // Test 1: WRITE | CREAT - Create new file and write
+    println(str_lit("Test 1: PLATFORM_RIGHTS_WRITE | PLATFORM_O_CREAT"));
     platform_fd_t fd = platform_path_open(test_file, base_strlen(test_file), PLATFORM_RIGHTS_WRITE, PLATFORM_O_CREAT);
     assert(fd >= 0);
     ciovec_t iov = {.buf = test_content, .buf_len = base_strlen(test_content)};
@@ -695,8 +695,8 @@ void test_file_flags(void) {
     assert(platform_fd_close(fd) == 0);
     println(str_lit("  Created and wrote to file"));
 
-    // Test 2: RDONLY - Read from existing file
-    println(str_lit("Test 2: PLATFORM_O_RDONLY"));
+    // Test 2: READ - Read from existing file
+    println(str_lit("Test 2: PLATFORM_RIGHTS_READ"));
     fd = platform_path_open(test_file, base_strlen(test_file), PLATFORM_RIGHTS_READ, 0);
     assert(fd >= 0);
     char read_buf[100] = {0};
@@ -709,8 +709,8 @@ void test_file_flags(void) {
     assert(platform_fd_close(fd) == 0);
     println(str_lit("  Read file successfully: {}"), read_buf);
 
-    // Test 3: WRONLY | TRUNC - Truncate and write new content
-    println(str_lit("Test 3: PLATFORM_O_WRONLY | PLATFORM_O_TRUNC"));
+    // Test 3: WRITE | TRUNC - Truncate and write new content
+    println(str_lit("Test 3: PLATFORM_RIGHTS_WRITE | PLATFORM_O_TRUNC"));
     fd = platform_path_open(test_file, base_strlen(test_file), PLATFORM_RIGHTS_WRITE, PLATFORM_O_TRUNC);
     assert(fd >= 0);
     ciovec_t trunc_iov = {.buf = new_content, .buf_len = base_strlen(new_content)};
@@ -720,7 +720,7 @@ void test_file_flags(void) {
     assert(platform_fd_close(fd) == 0);
     println(str_lit("  Truncated and wrote new content"));
 
-    // Test 4: RDONLY - Verify truncation worked
+    // Test 4: READ - Verify truncation worked
     println(str_lit("Test 4: Verify truncation"));
     fd = platform_path_open(test_file, base_strlen(test_file), PLATFORM_RIGHTS_READ, 0);
     assert(fd >= 0);
@@ -735,7 +735,7 @@ void test_file_flags(void) {
     println(str_lit("  Verified truncated content: {}"), read_buf);
 
     // Test 5: RDWR - Read and write with same fd
-    println(str_lit("Test 5: PLATFORM_O_RDWR"));
+    println(str_lit("Test 5: PLATFORM_RIGHTS_RDWR"));
     fd = platform_path_open(test_file, base_strlen(test_file), PLATFORM_RIGHTS_RDWR, 0);
     assert(fd >= 0);
 
@@ -763,7 +763,7 @@ void test_file_flags(void) {
     println(str_lit("  Wrote with RDWR"));
 
     // Test 6: RDWR | CREAT - Create if doesn't exist
-    println(str_lit("Test 6: PLATFORM_O_RDWR | PLATFORM_O_CREAT"));
+    println(str_lit("Test 6: PLATFORM_RIGHTS_RDWR | PLATFORM_O_CREAT"));
     const char* new_file = "test_rdwr_creat.txt";
     fd = platform_path_open(new_file, base_strlen(new_file), PLATFORM_RIGHTS_RDWR, PLATFORM_O_CREAT);
     assert(fd >= 0);
@@ -774,8 +774,8 @@ void test_file_flags(void) {
     assert(platform_fd_close(fd) == 0);
     println(str_lit("  Created new file with RDWR|CREAT"));
 
-    // Test 7: WRONLY | CREAT | TRUNC - All flags combined
-    println(str_lit("Test 7: PLATFORM_O_WRONLY | PLATFORM_O_CREAT | PLATFORM_O_TRUNC"));
+    // Test 7: WRITE | CREAT | TRUNC - All flags combined
+    println(str_lit("Test 7: PLATFORM_RIGHTS_WRITE | PLATFORM_O_CREAT | PLATFORM_O_TRUNC"));
     fd = platform_path_open(test_file, base_strlen(test_file), PLATFORM_RIGHTS_WRITE, PLATFORM_O_CREAT | PLATFORM_O_TRUNC);
     assert(fd >= 0);
     const char* final_content = "Final!";
