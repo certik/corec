@@ -13,3 +13,4 @@ test_flags.txt
 test_multi_fd*.txt
 test_rdwr_creat.txt
 test_std_fds.txt
+expected_args.txt

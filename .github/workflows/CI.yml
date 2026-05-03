@@ -15,6 +15,7 @@ jobs:
           - platform: linux
             os: ubuntu-latest
             pixi-command: |
+              printf 'a1\nb2\nc3\n' > expected_args.txt
               pixi run -e linux test_linux a1 b2 c3
               echo "test input data" | pixi run -e linux ./corec_test_linux --test-input
               pixi run -e wasm test_wasm a1 b2 c3
@@ -24,6 +25,7 @@ jobs:
           - platform: macos
             os: macos-latest
             pixi-command: |
+              printf 'a1\nb2\nc3\n' > expected_args.txt
               pixi run -e macos test_macos a1 b2 c3
               echo "test input data" | pixi run -e macos ./corec_test_macos --test-input
               pixi run -e wasm test_wasm a1 b2 c3
@@ -34,6 +36,7 @@ jobs:
             os: windows-latest
             pixi-command: |
               call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat" || exit /b 1
+              pixi run shell -c "printf 'a1\nb2\nc3\n' > expected_args.txt" || exit /b 1
               pixi run -e windows test_windows a1 b2 c3 || exit /b 1
               pixi run shell -c "printf 'test input data' | pixi run -e windows ./corec_test_windows.exe --test-input" || exit /b 1
               pixi run -e wasm test_wasm a1 b2 c3 || exit /b 1
