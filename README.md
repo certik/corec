@@ -116,3 +116,23 @@ Run `pixi task list` to see all available tasks with descriptions.
 GitHub Actions runs the full test suite — native binary, WebAssembly via
 `wasmtime`, and the same `.wasm` under Node.js — on Linux, macOS, and Windows
 on every push and PR. See `.github/workflows/CI.yml`.
+
+## Contributing / extending
+
+A few conventions worth knowing before submitting changes:
+
+* **Stay inside the sandbox.** Code in `base/` and `platform/` is built with
+  `-nostdlib -nostdinc -fno-builtin`. Do not include `<stdio.h>`, `<string.h>`,
+  etc. Use what `base/` and `platform/platform.h` provide; if something is
+  missing, add it to `base/`.
+* **Adding a platform call.** Add the prototype to `platform/platform.h`, then
+  implement it in **all four** backends in the same change:
+  `platform/platform_{linux,macos,windows,wasm}.c`. CI will only catch a
+  missing implementation on the platforms where it is exercised.
+* **Adding a new backend.** Drop in a new `platform/platform_<host>.c` that
+  implements every function in `platform.h`, add a feature/environment block
+  to `pixi.toml`, and add a row to `.github/workflows/CI.yml`.
+* **Tests.** All tests live in `test_base.c`. Add a `test_<topic>()` function,
+  declare it in `test_base.h`, and call it from `test_base()` in `test_base.c`.
+  If a test creates files on disk, add their names to `.gitignore` next to the
+  existing `test_*.txt` block.
