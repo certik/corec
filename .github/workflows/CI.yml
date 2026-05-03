@@ -40,13 +40,6 @@ jobs:
               pixi run shell -c "printf 'test input data' | pixi run -e wasm wasmtime --dir . corec_test.wasm --test-input" || exit /b 1
               pixi run -e js test_node a1 b2 c3 || exit /b 1
               pixi run shell -c "printf 'test input data' | pixi run -e js test_node --test-input" || exit /b 1
-          - platform: wasm
-            os: ubuntu-latest
-            pixi-command: |
-              pixi run -e wasm test_wasm a1 b2 c3
-              echo "test input data" | pixi run -e wasm wasmtime --dir . corec_test.wasm --test-input
-              pixi run -e js test_node a1 b2 c3
-              echo "test input data" | pixi run -e js test_node --test-input
 
     runs-on: ${{ matrix.os }}
     name: Test ${{ matrix.platform }}
