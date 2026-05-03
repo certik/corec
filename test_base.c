@@ -1034,6 +1034,42 @@ void test_args(void) {
     // Verify argc is at least 1 (program name)
     assert(argc >= 1);
 
+    // If `expected_args.txt` exists, treat it as ground-truth from the
+    // test harness: each newline-separated line must equal the next
+    // argv entry (starting at argv[1]). This catches platform layers
+    // that silently drop or reorder argv, because the assertions are
+    // driven from a side channel (the file) that does not flow through
+    // the platform_args_* path.
+    Arena* expected_arena = arena_new(4096);
+    string expected;
+    if (read_file(expected_arena, str_lit("expected_args.txt"), &expected)) {
+        // `expected.size` from read_file includes the trailing '\0'.
+        size_t arg_idx = 1;
+        size_t line_start = 0;
+        for (size_t i = 0; i < expected.size; i++) {
+            char c = expected.str[i];
+            if (c == '\n' || c == '\0') {
+                size_t end = i;
+                if (end > line_start && expected.str[end - 1] == '\r') {
+                    end--;  // tolerate CRLF
+                }
+                if (line_start == end && c == '\0') break;  // trailing blank
+                assert(arg_idx < argc);
+                size_t len = end - line_start;
+                assert(base_strlen(argv[arg_idx]) == len);
+                for (size_t k = 0; k < len; k++) {
+                    assert(argv[arg_idx][k] == expected.str[line_start + k]);
+                }
+                arg_idx++;
+                line_start = i + 1;
+            }
+        }
+        assert(arg_idx == argc);
+        print("Verified argv against expected_args.txt: ");
+        println(str_lit("{} args"), (int)(argc - 1));
+    }
+    arena_free(expected_arena);
+
     // Free buffers
     buddy_free(argv);
     buddy_free(argv_buf);
