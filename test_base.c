@@ -4,10 +4,10 @@
 #include <base/scratch.h>
 #include <base/buddy.h>
 #include <base/format.h>
-#include <base/io.h>
 #include <base/hashtable.h>
 #include <base/vector.h>
 #include <base/base_string.h>
+#include <base/base_math.h>
 #include <base/mem.h>
 #include <base/assert.h>
 #include <test_base.h>
@@ -111,7 +111,7 @@ static void test_nested_scratch_outer(bool avoid_conflict) {
 }
 
 void test_platform_heap(void) {
-    print("## Testing WASI heap operations...\n");
+    print("## Testing platform heap operations...\n");
     void* hb = platform_heap_base();
     print("heap_base set\n");
 
@@ -129,7 +129,62 @@ void test_platform_heap(void) {
 
     ms2 = platform_heap_size();
     assert(ms1 + (4+8)*PLATFORM_WASM_PAGE_SIZE == ms2);
-    print("WASI heap tests passed\n");
+    print("platform heap tests passed\n");
+}
+
+static bool float_close(float a, float b, float tol) {
+    float d = a - b;
+    if (d < 0) d = -d;
+    return d <= tol;
+}
+
+static bool double_close(double a, double b, double tol) {
+    double d = a - b;
+    if (d < 0) d = -d;
+    return d <= tol;
+}
+
+void test_math(void) {
+    print("## Testing math functions...\n");
+
+    // fast_sqrt / fast_sqrtf — some backends use a Newton-Raphson
+    // approximation, so allow ~1e-4 relative error.
+    assert(double_close(fast_sqrt(0.0),  0.0,  1e-12));  // x==0 short-circuit
+    assert(double_close(fast_sqrt(1.0),  1.0,  1e-4));
+    assert(double_close(fast_sqrt(4.0),  2.0,  1e-4));
+    assert(double_close(fast_sqrt(2.0),  1.41421356237, 1e-4));
+    assert(double_close(fast_sqrt(1e6),  1000.0, 1.0));   // ~1e-3 relative
+
+    assert(float_close(fast_sqrtf(0.0f), 0.0f, 1e-6f));
+    assert(float_close(fast_sqrtf(1.0f), 1.0f, 1e-3f));
+    assert(float_close(fast_sqrtf(9.0f), 3.0f, 1e-3f));
+    assert(float_close(fast_sqrtf(2.0f), 1.41421356f, 1e-3f));
+
+    // fast_sinf
+    const float PI = 3.14159265358979323846f;
+    assert(float_close(fast_sinf(0.0f),       0.0f, 1e-4f));
+    assert(float_close(fast_sinf(PI),         0.0f, 1e-3f));
+    assert(float_close(fast_sinf(PI * 0.5f),  1.0f, 1e-4f));
+    assert(float_close(fast_sinf(-PI * 0.5f),-1.0f, 1e-4f));
+    assert(float_close(fast_sinf(PI * 0.25f), 0.70710678f, 1e-3f));
+
+    // fast_cosf
+    assert(float_close(fast_cosf(0.0f),       1.0f, 1e-4f));
+    assert(float_close(fast_cosf(PI),        -1.0f, 1e-3f));
+    assert(float_close(fast_cosf(PI * 0.5f),  0.0f, 1e-3f));
+    assert(float_close(fast_cosf(PI * 0.25f), 0.70710678f, 1e-3f));
+
+    // fast_tanf
+    assert(float_close(fast_tanf(0.0f),       0.0f, 1e-4f));
+    assert(float_close(fast_tanf(PI * 0.25f), 1.0f, 1e-3f));
+    assert(float_close(fast_tanf(-PI * 0.25f),-1.0f, 1e-3f));
+
+    // Periodicity / range reduction
+    assert(float_close(fast_sinf(2.0f * PI), 0.0f, 1e-3f));
+    assert(float_close(fast_cosf(2.0f * PI), 1.0f, 1e-3f));
+    assert(float_close(fast_sinf(10.0f * PI + PI * 0.5f), 1.0f, 1e-2f));
+
+    print("math tests passed\n");
 }
 
 void test_buddy(void) {
@@ -629,8 +684,8 @@ void test_file_flags(void) {
     const char* test_content = "Hello, World!";
     const char* new_content = "Updated!";
 
-    // Test 1: WRONLY | CREAT - Create new file and write
-    println(str_lit("Test 1: PLATFORM_O_WRONLY | PLATFORM_O_CREAT"));
+    // Test 1: WRITE | CREAT - Create new file and write
+    println(str_lit("Test 1: PLATFORM_RIGHTS_WRITE | PLATFORM_O_CREAT"));
     platform_fd_t fd = platform_path_open(test_file, base_strlen(test_file), PLATFORM_RIGHTS_WRITE, PLATFORM_O_CREAT);
     assert(fd >= 0);
     ciovec_t iov = {.buf = test_content, .buf_len = base_strlen(test_content)};
@@ -641,8 +696,8 @@ void test_file_flags(void) {
     assert(platform_fd_close(fd) == 0);
     println(str_lit("  Created and wrote to file"));
 
-    // Test 2: RDONLY - Read from existing file
-    println(str_lit("Test 2: PLATFORM_O_RDONLY"));
+    // Test 2: READ - Read from existing file
+    println(str_lit("Test 2: PLATFORM_RIGHTS_READ"));
     fd = platform_path_open(test_file, base_strlen(test_file), PLATFORM_RIGHTS_READ, 0);
     assert(fd >= 0);
     char read_buf[100] = {0};
@@ -655,8 +710,8 @@ void test_file_flags(void) {
     assert(platform_fd_close(fd) == 0);
     println(str_lit("  Read file successfully: {}"), read_buf);
 
-    // Test 3: WRONLY | TRUNC - Truncate and write new content
-    println(str_lit("Test 3: PLATFORM_O_WRONLY | PLATFORM_O_TRUNC"));
+    // Test 3: WRITE | TRUNC - Truncate and write new content
+    println(str_lit("Test 3: PLATFORM_RIGHTS_WRITE | PLATFORM_O_TRUNC"));
     fd = platform_path_open(test_file, base_strlen(test_file), PLATFORM_RIGHTS_WRITE, PLATFORM_O_TRUNC);
     assert(fd >= 0);
     ciovec_t trunc_iov = {.buf = new_content, .buf_len = base_strlen(new_content)};
@@ -666,7 +721,7 @@ void test_file_flags(void) {
     assert(platform_fd_close(fd) == 0);
     println(str_lit("  Truncated and wrote new content"));
 
-    // Test 4: RDONLY - Verify truncation worked
+    // Test 4: READ - Verify truncation worked
     println(str_lit("Test 4: Verify truncation"));
     fd = platform_path_open(test_file, base_strlen(test_file), PLATFORM_RIGHTS_READ, 0);
     assert(fd >= 0);
@@ -681,7 +736,7 @@ void test_file_flags(void) {
     println(str_lit("  Verified truncated content: {}"), read_buf);
 
     // Test 5: RDWR - Read and write with same fd
-    println(str_lit("Test 5: PLATFORM_O_RDWR"));
+    println(str_lit("Test 5: PLATFORM_RIGHTS_RDWR"));
     fd = platform_path_open(test_file, base_strlen(test_file), PLATFORM_RIGHTS_RDWR, 0);
     assert(fd >= 0);
 
@@ -709,7 +764,7 @@ void test_file_flags(void) {
     println(str_lit("  Wrote with RDWR"));
 
     // Test 6: RDWR | CREAT - Create if doesn't exist
-    println(str_lit("Test 6: PLATFORM_O_RDWR | PLATFORM_O_CREAT"));
+    println(str_lit("Test 6: PLATFORM_RIGHTS_RDWR | PLATFORM_O_CREAT"));
     const char* new_file = "test_rdwr_creat.txt";
     fd = platform_path_open(new_file, base_strlen(new_file), PLATFORM_RIGHTS_RDWR, PLATFORM_O_CREAT);
     assert(fd >= 0);
@@ -720,8 +775,8 @@ void test_file_flags(void) {
     assert(platform_fd_close(fd) == 0);
     println(str_lit("  Created new file with RDWR|CREAT"));
 
-    // Test 7: WRONLY | CREAT | TRUNC - All flags combined
-    println(str_lit("Test 7: PLATFORM_O_WRONLY | PLATFORM_O_CREAT | PLATFORM_O_TRUNC"));
+    // Test 7: WRITE | CREAT | TRUNC - All flags combined
+    println(str_lit("Test 7: PLATFORM_RIGHTS_WRITE | PLATFORM_O_CREAT | PLATFORM_O_TRUNC"));
     fd = platform_path_open(test_file, base_strlen(test_file), PLATFORM_RIGHTS_WRITE, PLATFORM_O_CREAT | PLATFORM_O_TRUNC);
     assert(fd >= 0);
     const char* final_content = "Final!";
@@ -1110,6 +1165,7 @@ void test_base(void) {
     print("=== base tests ===\n");
 
     test_platform_heap();
+    test_math();
     test_buddy();
     test_arena();
     test_scratch();

@@ -74,3 +74,5 @@ typedef signed long long int64_t;
 #define INT64_MAX ((int64_t)0x7FFFFFFFFFFFFFFFll)
 #define UINT64_MAX ((uint64_t)0xFFFFFFFFFFFFFFFFull)
 #define FLT_MAX 3.402823466e+38F
+
+#define array_size(a) (sizeof(a) / sizeof((a)[0]))

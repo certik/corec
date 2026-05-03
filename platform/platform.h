@@ -95,20 +95,21 @@ typedef struct iovec_s {
     size_t iov_len;
 } iovec_t;
 
-// WASI rights flags (capabilities for file operations)
-#define PLATFORM_RIGHT_FD_READ   0x2   // __WASI_RIGHTS_FD_READ (1 << 1)
-#define PLATFORM_RIGHT_FD_WRITE  0x40  // __WASI_RIGHTS_FD_WRITE (1 << 6)
-#define PLATFORM_RIGHT_FD_SEEK   0x4   // __WASI_RIGHTS_FD_SEEK (1 << 2)
-#define PLATFORM_RIGHT_FD_TELL   0x20  // __WASI_RIGHTS_FD_TELL (1 << 5)
+// Rights flags (capabilities for file operations). Values match the WASI
+// __WASI_RIGHTS_* constants; non-WASI backends translate as appropriate.
+#define PLATFORM_RIGHT_FD_READ   0x2   // (1 << 1)
+#define PLATFORM_RIGHT_FD_WRITE  0x40  // (1 << 6)
+#define PLATFORM_RIGHT_FD_SEEK   0x4   // (1 << 2)
+#define PLATFORM_RIGHT_FD_TELL   0x20  // (1 << 5)
 
 // Common rights combinations
 #define PLATFORM_RIGHTS_READ  (PLATFORM_RIGHT_FD_READ | PLATFORM_RIGHT_FD_SEEK | PLATFORM_RIGHT_FD_TELL)
 #define PLATFORM_RIGHTS_WRITE (PLATFORM_RIGHT_FD_WRITE | PLATFORM_RIGHT_FD_SEEK | PLATFORM_RIGHT_FD_TELL)
 #define PLATFORM_RIGHTS_RDWR  (PLATFORM_RIGHTS_READ | PLATFORM_RIGHTS_WRITE)
 
-// File creation flags (WASI oflags - passed through directly)
-#define PLATFORM_O_CREAT   0x1  // __WASI_OFLAGS_CREAT (1 << 0)
-#define PLATFORM_O_TRUNC   0x8  // __WASI_OFLAGS_TRUNC (1 << 3)
+// File creation flags. Values match the WASI __WASI_OFLAGS_* constants.
+#define PLATFORM_O_CREAT   0x1  // (1 << 0)
+#define PLATFORM_O_TRUNC   0x8  // (1 << 3)
 
 // Seek whence values
 #define PLATFORM_SEEK_SET 0
@@ -122,7 +123,7 @@ typedef struct iovec_s {
 
 // Open a file at the given path with the specified rights and creation flags.
 // rights: combination of PLATFORM_RIGHTS_READ, PLATFORM_RIGHTS_WRITE, or PLATFORM_RIGHTS_RDWR
-// oflags: combination of PLATFORM_O_CREAT, PLATFORM_O_TRUNC (passed directly to WASI)
+// oflags: combination of PLATFORM_O_CREAT, PLATFORM_O_TRUNC
 // Returns a file descriptor on success, or -1 on error.
 platform_fd_t platform_path_open(const char* path, size_t path_len, uint64_t rights, int oflags);
 

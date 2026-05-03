@@ -1,9 +1,13 @@
 #pragma once
 
 #include <platform/platform.h>
+#include <base/arena.h>
+#include <base/base_string.h>
+#include <base/format.h>
 
-// None of these functions allocate memory (no arenas), so they are safe to use
-// anywhere, including in arena / buddy allocator code, or in asserts.
+// The functions below this comment do not allocate memory (no arenas), so they
+// are safe to use anywhere, including in arena / buddy allocator code, or in
+// asserts.
 
 /**
  * @brief Writes all data from the iovecs to the specified file descriptor.
@@ -27,5 +31,18 @@ void writeln_int(int fd, char* text, int n);
 // Prints text with location information, appends '\n'
 void writeln_loc(int fd, const char *text, const char *file, unsigned int line, const char *function);
 
-#define array_size(a) (sizeof(a) / sizeof((a)[0]))
 #define PRINT_ERR(x) writeln_loc(PLATFORM_STDERR_FD, (x), __FILE__, __LINE__, __func__)
+
+// The functions below allocate via arenas/scratch and depend on more of base/.
+
+// Returns the file contents as a null-terminated string in `text`.
+// Returns `true` on success, otherwise `false`.
+bool read_file(Arena *arena, const string filename, string *text);
+string read_file_ok(Arena *arena, const string filename);
+
+void println_explicit(string fmt, size_t arg_count, ...);
+
+#define println(fmt, ...) \
+    println_explicit(fmt, COUNT_ARGS(__VA_ARGS__) __VA_OPT__(,) APPLY_WITH_COUNT(COUNT_ARGS(__VA_ARGS__) __VA_OPT__(,) __VA_ARGS__))
+
+#define PRINT_LOG(x) println(str_lit("{}:{} in {}(): {}"), str_lit(__FILE__), __LINE__, str_lit(__func__), str_lit(x))

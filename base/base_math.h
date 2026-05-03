@@ -2,6 +2,18 @@
 
 #include <base/base_types.h>
 
+// We build with -nostdinc / /X, so <math.h> is not available. Define the
+// usual C99 floating-point macros ourselves. Under MSVC the literal
+// `1e308 * 1e308` overflows to +inf at compile time; Clang/GCC prefer the
+// builtins so we get exact inf/NaN bit patterns without a runtime expression.
+#ifndef INFINITY
+#ifdef _MSC_VER
+#define INFINITY ((float)(1e308 * 1e308))
+#else
+#define INFINITY (__builtin_inff())
+#endif
+#endif
+
 #ifndef NAN
 #ifdef _MSC_VER
 #define NAN ((float)(INFINITY * 0.0f))
@@ -10,24 +22,9 @@
 #endif
 #endif
 
-#ifndef INFINITY
-#ifdef _MSC_VER
-// Use the standard C99 macro from math.h or define it directly
-#include <math.h>
-#ifndef INFINITY
-#define INFINITY ((float)(1e308 * 1e308))
-#endif
-#else
-#define INFINITY (__builtin_inff())
-#endif
-#endif
-
 #ifndef HUGE_VAL
 #ifdef _MSC_VER
-#include <math.h>
-#ifndef HUGE_VAL
 #define HUGE_VAL ((double)INFINITY)
-#endif
 #else
 #define HUGE_VAL (__builtin_huge_val())
 #endif
@@ -47,6 +44,11 @@ static inline double base_round(double x) {
 }
 
 // Fast single-precision trigonometric functions
-float fast_sin(float x);
-float fast_cos(float x);
-float fast_tan(float x);
+float fast_sinf(float x);
+float fast_cosf(float x);
+float fast_tanf(float x);
+
+// Fast square-root functions (declared in platform.h, repeated here for
+// discoverability alongside the other math primitives).
+double fast_sqrt(double x);
+float fast_sqrtf(float x);

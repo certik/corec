@@ -2,6 +2,7 @@
 
 // Individual test functions
 void test_platform_heap(void);
+void test_math(void);
 void test_buddy(void);
 void test_arena(void);
 void test_scratch(void);

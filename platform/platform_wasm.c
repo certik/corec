@@ -33,9 +33,9 @@
 // index.html plug into. See platform/js/wasi.js for details.
 // =============================================================================
 
-#include <platform.h>
-#include <base_types.h>
-#include <buddy.h>
+#include <platform/platform.h>
+#include <base/base_types.h>
+#include <base/buddy.h>
 
 #define WASI(name) __attribute__((__import_module__("wasi_snapshot_preview1"), __import_name__(#name))) name
 
@@ -175,7 +175,9 @@ void platform_file_unmap(uint64_t handle) {
     (void)handle;
 }
 
-// Public initialization function for manual use (e.g., SDL apps using external stdlib)
+// Public initialization function for hosts that provide their own entry
+// point (PLATFORM_SKIP_ENTRY); the default _start path below calls this
+// itself.
 void platform_init(int argc, char** argv) {
     buddy_init();
 }
