@@ -73,14 +73,16 @@ pixi run -e js      test_node        # same .wasm, run via Node.js
 ```
 
 The same `corec_test.wasm` runs in `wasmtime`, in Node, and in any modern
-browser. The browser/Node host implements the `wasi_snapshot_preview1`
-imports in pure JavaScript — see `platform/js/`.
+browser. `platform/js/wasi.js` is the JS counterpart of
+`platform/platform_wasm.c`: it implements the `wasi_snapshot_preview1`
+imports in pure JavaScript and exposes a small host-friendly API.
+Sample hosts that consume it live in `examples/js/`.
 
 To try the browser runner locally:
 
 ```bash
 pixi run -e js serve_browser   # starts http.server on :8000
-# then open http://localhost:8000/platform/js/index.html
+# then open http://localhost:8000/examples/js/index.html
 ```
 
 The page provides text inputs for argv and stdin, mirrors stdout/stderr to
@@ -100,10 +102,12 @@ pixi run all_platforms          # all four
 * `platform/platform.h` — the platform-independent system interface.
 * `platform/platform_{linux,macos,windows,wasm}.c` — per-backend
   implementations.
-* `platform/js/` — JS host that implements the `wasi_snapshot_preview1`
-  imports (`wasi.js`), plus a Node.js runner (`run_node.js`) and a
-  browser page (`index.html`). The same `.wasm` artifact runs under
-  `wasmtime`, under `node`, and in the browser.
+* `platform/js/wasi.js` — JS counterpart of `platform_wasm.c`: implements
+  the `wasi_snapshot_preview1` imports in pure JavaScript so the same
+  `.wasm` artifact runs under `wasmtime`, under `node`, and in the
+  browser.
+* `examples/js/` — sample hosts that embed `wasi.js`: a Node.js runner
+  (`run_node.js`) and a browser page (`index.html`).
 * `base/` — self-contained utilities built on top of `platform.h`.
 * `test_base.c`, `test_base.h`, `test_base_only.c` — the test suite that
   exercises `base/` and the platform layer on every backend.

@@ -1,3 +1,38 @@
+// =============================================================================
+// platform_wasm.c — WebAssembly (WASI) backend for the Core C platform layer.
+// =============================================================================
+//
+// This file is the wasm-target counterpart of platform_linux.c,
+// platform_macos.c, and platform_windows.c. The other three backends call
+// directly into the host operating system through compiler/syscall
+// mechanisms. WASI is different: it is itself a portable system interface
+// that sits between this `.wasm` and whatever embeds it. So this file is
+// thin — most of it is just forwarding the platform.h API onto the
+// matching wasi_snapshot_preview1 imports declared below:
+//
+//     fd_write, fd_read, fd_close, fd_seek, fd_tell,
+//     path_open,
+//     args_sizes_get, args_get,
+//     proc_exit
+//
+// "Imports" here is the WASM term: these symbols are not defined in the
+// `.wasm` module. The runtime that loads the module must supply them.
+// We use exactly nine of them; everything else (including memory) is
+// intrinsic via __builtin_wasm_memory_size / __builtin_wasm_memory_grow.
+//
+// What runs the produced .wasm?
+//
+//   * `wasmtime` (used by `pixi run -e wasm test_wasm`) — a standalone
+//     WASI runtime that talks directly to the OS.
+//   * Node.js, via examples/js/run_node.js.
+//   * Any modern browser, via examples/js/index.html.
+//
+// The two JS hosts share platform/js/wasi.js, which is the JavaScript
+// counterpart of *this* file — it implements the same nine WASI imports
+// in pure JS and exposes a host-friendly API that run_node.js and
+// index.html plug into. See platform/js/wasi.js for details.
+// =============================================================================
+
 #include <platform.h>
 #include <base_types.h>
 #include <buddy.h>

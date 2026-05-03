@@ -3,13 +3,13 @@
 // filesystem access via node:fs.
 //
 // Usage:
-//   node platform/js/run_node.js path/to/program.wasm [args...]
-//   echo "x" | node platform/js/run_node.js path/to/program.wasm --test-input
+//   node examples/js/run_node.js path/to/program.wasm [args...]
+//   echo "x" | node examples/js/run_node.js path/to/program.wasm --test-input
 
 import { readFileSync, openSync, closeSync, readSync, writeSync,
          fstatSync, constants as FS } from "node:fs";
 import { basename } from "node:path";
-import { makeWasi, ProcExit } from "./wasi.js";
+import { makeWasi, ProcExit } from "../../platform/js/wasi.js";
 
 const wasmPath = process.argv[2];
 if (!wasmPath) {
