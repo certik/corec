@@ -67,6 +67,7 @@ __declspec(dllimport) HANDLE __stdcall CreateFileMappingA(HANDLE hFile, void* lp
 __declspec(dllimport) LPVOID __stdcall MapViewOfFile(HANDLE hFileMappingObject, DWORD dwDesiredAccess, DWORD dwFileOffsetHigh, DWORD dwFileOffsetLow, size_t dwNumberOfBytesToMap);
 __declspec(dllimport) int __stdcall UnmapViewOfFile(LPCVOID lpBaseAddress);
 __declspec(dllimport) int __stdcall GetFileSizeEx(HANDLE hFile, LARGE_INTEGER* lpFileSize);
+__declspec(dllimport) int __stdcall SetEndOfFile(HANDLE hFile);
 
 // Our emulated heap state for Windows
 static uint8_t* windows_heap_base = NULL;
@@ -260,13 +261,21 @@ platform_fd_t platform_path_open(const char* path, size_t path_len, uint64_t rig
         access = GENERIC_READ;
     }
 
-    // Map oflags to Windows creation disposition
+    // Map oflags to Windows creation disposition.
+    //
+    // Note on O_TRUNC alone: TRUNCATE_EXISTING has been observed to fail
+    // intermittently on CI runners (e.g. immediately after a CloseHandle on
+    // the same path, sometimes due to AV/indexer handles). To get robust
+    // POSIX-like semantics (open existing, then truncate) we open with
+    // OPEN_EXISTING and explicitly truncate via SetEndOfFile below.
+    int do_truncate = 0;
     if ((oflags & PLATFORM_O_CREAT) && (oflags & PLATFORM_O_TRUNC)) {
         creation = CREATE_ALWAYS;  // Create new or truncate existing
     } else if (oflags & PLATFORM_O_CREAT) {
         creation = OPEN_ALWAYS;    // Open existing or create new
     } else if (oflags & PLATFORM_O_TRUNC) {
-        creation = TRUNCATE_EXISTING;  // Truncate existing file (fails if doesn't exist)
+        creation = OPEN_EXISTING;  // Open existing, then truncate below.
+        do_truncate = 1;
     } else {
         creation = OPEN_EXISTING;  // Open existing file
     }
@@ -283,6 +292,16 @@ platform_fd_t platform_path_open(const char* path, size_t path_len, uint64_t rig
 
     if (handle == INVALID_HANDLE_VALUE) {
         return -1;
+    }
+
+    if (do_truncate) {
+        // POSIX O_TRUNC: truncate the file to zero length on open. We need
+        // GENERIC_WRITE for SetEndOfFile to succeed; the caller must have
+        // requested write rights for O_TRUNC to make sense.
+        if (!SetEndOfFile(handle)) {
+            CloseHandle(handle);
+            return -1;
+        }
     }
 
     // Return handle cast to int (platform_fd_t)
