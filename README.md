@@ -69,7 +69,7 @@ pixi run -e linux   test_linux       # Linux native
 pixi run -e macos   test_macos       # macOS native (on macOS only)
 pixi run -e windows test_windows     # Windows native (on Windows only, MSVC)
 pixi run -e wasm    test_wasm        # WebAssembly via wasmtime
-pixi run -e wasm    test_node        # same .wasm, run via Node.js
+pixi run -e js      test_node        # same .wasm, run via Node.js
 ```
 
 The same `corec_test.wasm` runs in `wasmtime`, in Node, and in any modern
@@ -79,7 +79,7 @@ imports in pure JavaScript — see `platform/js/`.
 To try the browser runner locally:
 
 ```bash
-pixi run -e wasm serve_browser   # starts http.server on :8000
+pixi run -e js serve_browser   # starts http.server on :8000
 # then open http://localhost:8000/platform/js/index.html
 ```
 
