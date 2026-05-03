@@ -12,7 +12,7 @@ version = "0.1.0"
 # WebAssembly (WASI)
 #=============================================================================
 [feature.wasm.tasks]
-build_wasm = """
+build_wasm = { cmd = """
 clang \
     --target=wasm32-wasi \
     -Os \
@@ -41,7 +41,11 @@ clang \
     base/assert.c \
     base/exit.c \
     platform/platform_wasm.c
-"""
+""", inputs = [
+    "test_base_only.c", "test_base.c", "test_base.h",
+    "base/**/*.c", "base/**/*.h",
+    "platform/platform_wasm.c", "platform/platform.h",
+], outputs = ["corec_test.wasm"] }
 
 test_wasm = { cmd="wasmtime --dir . corec_test.wasm", depends-on=["build_wasm"] }
 
