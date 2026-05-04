@@ -229,7 +229,7 @@ void test_buddy(void) {
 void test_arena(void) {
     print("## Testing arena allocator...\n");
     print("Creating a new arena with an initial size of 4KB...\n");
-    Arena *main_arena = arena_new(4096);
+    Arena *main_arena = arena_create(4096);
     if (!main_arena) {
         print("Error: Failed to create the arena.\n");
         platform_exit(1);
@@ -291,13 +291,61 @@ void test_arena(void) {
     base_strcpy(p_s5, s5);
     print(p_s5);
 
+    // Test typed allocation macros: arena_new and arena_new_array.
+    print("Testing arena_new and arena_new_array typed allocation macros...\n");
+    typedef struct { int x; double y; char z; } TestStruct;
+
+    TestStruct *one = arena_new(main_arena, TestStruct);
+    assert(one != NULL);
+    // Verify alignment is at least sufficient for the struct.
+    assert(((uintptr_t)one % _Alignof(TestStruct)) == 0);
+    one->x = 42;
+    one->y = 3.14;
+    one->z = 'a';
+    assert(one->x == 42);
+    assert(one->y == 3.14);
+    assert(one->z == 'a');
+
+    int *single_int = arena_new(main_arena, int);
+    assert(single_int != NULL);
+    *single_int = -7;
+    assert(*single_int == -7);
+
+    const size_t N = 16;
+    int *ints = arena_new_array(main_arena, int, N);
+    assert(ints != NULL);
+    for (size_t i = 0; i < N; i++) {
+        ints[i] = (int)(i * i);
+    }
+    for (size_t i = 0; i < N; i++) {
+        assert(ints[i] == (int)(i * i));
+    }
+
+    // Two adjacent typed-array allocations should not overlap.
+    TestStruct *arr_a = arena_new_array(main_arena, TestStruct, 4);
+    TestStruct *arr_b = arena_new_array(main_arena, TestStruct, 4);
+    assert(arr_a != NULL && arr_b != NULL);
+    assert(arr_b >= arr_a + 4 || arr_a >= arr_b + 4);
+    for (size_t i = 0; i < 4; i++) {
+        arr_a[i].x = (int)i;
+        arr_b[i].x = (int)(100 + i);
+    }
+    for (size_t i = 0; i < 4; i++) {
+        assert(arr_a[i].x == (int)i);
+        assert(arr_b[i].x == (int)(100 + i));
+    }
+
+    // Note: arena_alloc requires size > 0, so arena_new_array with count=0
+    // is not supported (would assert on size==0).
+    print("arena_new and arena_new_array work correctly.\n");
+
     print("Freeing the arena...\n");
-    arena_free(main_arena);
+    arena_destroy(main_arena);
     print("Arena has been completely deallocated and memory returned to the system.\n");
 
     // Test arena expansion
     print("Testing arena expansion...\n");
-    Arena *expand_arena = arena_new(1024); // Small initial size (will be rounded to MIN_CHUNK_SIZE=4096)
+    Arena *expand_arena = arena_create(1024); // Small initial size (will be rounded to MIN_CHUNK_SIZE=4096)
     if (!expand_arena) {
         print("Error: Failed to create the arena.\n");
         platform_exit(1);
@@ -364,7 +412,7 @@ void test_arena(void) {
     arena_pos_t pos_after_block1 = arena_get_pos(expand_arena);
     // Note: we need to save position after block1, before expansion
 
-    Arena *reset_test_arena = arena_new(512); // Will be rounded to MIN_CHUNK_SIZE=4096, buddy gives 8192
+    Arena *reset_test_arena = arena_create(512); // Will be rounded to MIN_CHUNK_SIZE=4096, buddy gives 8192
     char *r1 = arena_alloc(reset_test_arena, 2048);
     base_strcpy(r1, "R1");
     arena_pos_t pos_after_r1 = arena_get_pos(reset_test_arena);
@@ -422,15 +470,15 @@ void test_arena(void) {
     assert(r4[0] == 'R' && r4[1] == '4');
     print("Reset of expanded arena verified - correctly returned to chunk 0\n");
 
-    arena_free(expand_arena);
-    arena_free(reset_test_arena);
+    arena_destroy(expand_arena);
+    arena_destroy(reset_test_arena);
     print("Arena allocator tests passed\n");
 }
 
 void test_scratch(void) {
     print("## Testing scratch arena...\n");
     print("Creating a new arena for scratch tests...\n");
-    Arena *scratch_test_arena = arena_new(4096);
+    Arena *scratch_test_arena = arena_create(4096);
     if (!scratch_test_arena) {
         print("Error: Failed to create the arena.\n");
         platform_exit(1);
@@ -512,7 +560,7 @@ void test_scratch(void) {
     print("  Memory position restored correctly\n");
 
     print("Freeing scratch test arena...\n");
-    arena_free(scratch_test_arena);
+    arena_destroy(scratch_test_arena);
 
     // Test scratch arena expansion
     print("Test 5: Scratch arena expansion\n");
@@ -613,7 +661,7 @@ void test_scratch(void) {
 void test_format(void) {
     println(str_lit("")); // Test empty string / line
     println(str_lit("## Testing format..."));
-    Arena* arena = arena_new(1024*10);
+    Arena* arena = arena_create(1024*10);
     double pi = 3.1415926535;
 
     // Example with no arguments
@@ -651,7 +699,7 @@ void test_format(void) {
     println(str_lit("Multiple args: {}"), str_to_cstr_copy(arena, result));
     println(str_lit("Multiple args: {}"), result);
 
-    arena_free(arena);
+    arena_destroy(arena);
     println(str_lit("Format tests passed"));
 }
 
@@ -692,7 +740,7 @@ void test_numconv(void) {
 
 void test_io(void) {
     println(str_lit("## Testing io..."));
-    Arena* arena = arena_new(1024*20);
+    Arena* arena = arena_create(1024*20);
 
     string text;
     bool ok = read_file(arena, str_lit("does not exist"), &text);
@@ -709,7 +757,7 @@ void test_io(void) {
 
     println(str_lit("Hello from io."));
 
-    arena_free(arena);
+    arena_destroy(arena);
     println(str_lit("I/O tests passed"));
 }
 
@@ -827,7 +875,7 @@ void test_file_flags(void) {
 
 void test_hashtable_int_string(void) {
     println(str_lit("## Testing hashtable (int->string)..."));
-    Arena* arena = arena_new(1024*10);
+    Arena* arena = arena_create(1024*10);
 
     MapIntString ht;
     MapIntString_init(arena, &ht, 16);
@@ -836,13 +884,13 @@ void test_hashtable_int_string(void) {
     assert(value);
     println(str_lit("Value for key 42: {}"), str_to_cstr_copy(arena, *value));
 
-    arena_free(arena);
+    arena_destroy(arena);
     println(str_lit("Hashtable (int->string) tests passed"));
 }
 
 void test_hashtable_string_int(void) {
     println(str_lit("## Testing hashtable (string->int)..."));
-    Arena* arena = arena_new(1024*10);
+    Arena* arena = arena_create(1024*10);
 
     MapStringInt ht;
     MapStringInt_init(arena, &ht, 16);
@@ -851,13 +899,13 @@ void test_hashtable_string_int(void) {
     assert(value);
     println(str_lit("Value for key \"forty-two\": {}"), *value);
 
-    arena_free(arena);
+    arena_destroy(arena);
     println(str_lit("Hashtable (string->int) tests passed"));
 }
 
 void test_vector_int(void) {
     println(str_lit("## Testing vector (int)..."));
-    Arena* arena = arena_new(1024*10);
+    Arena* arena = arena_create(1024*10);
 
     VecInt v;
     VecInt_reserve(arena, &v, 1);
@@ -872,13 +920,13 @@ void test_vector_int(void) {
     assert(v.data[1] == 2);
     assert(v.data[2] == 3);
 
-    arena_free(arena);
+    arena_destroy(arena);
     println(str_lit("Vector (int) tests passed"));
 }
 
 void test_vector_int_ptr(void) {
     println(str_lit("## Testing vector (int*)..."));
-    Arena* arena = arena_new(1024*10);
+    Arena* arena = arena_create(1024*10);
 
     VecIntP v;
     int i=1, j=2, k=3;
@@ -896,13 +944,13 @@ void test_vector_int_ptr(void) {
     k = 4;
     assert(*v.data[2] == 4);
 
-    arena_free(arena);
+    arena_destroy(arena);
     println(str_lit("Vector (int*) tests passed"));
 }
 
 void test_string(void) {
     print("## Testing base string functions...\n");
-    Arena *arena = arena_new(4096);
+    Arena *arena = arena_create(4096);
 
     // Test str_from_cstr_view
     string s1 = str_from_cstr_view("hello");
@@ -942,7 +990,7 @@ void test_string(void) {
     assert(base_strlen(cstr) == 11);
 
     print("String function tests passed\n");
-    arena_free(arena);
+    arena_destroy(arena);
 }
 
 void test_std_fds(void) {
@@ -1064,7 +1112,7 @@ void test_stdin(void) {
 
     // Debug output
     print("Read from stdin (length ");
-    Arena *debug_arena = arena_new(1024);
+    Arena *debug_arena = arena_create(1024);
     println(str_lit("{}"), (int)nread);
     print("): '");
     print(buffer);
@@ -1074,7 +1122,7 @@ void test_stdin(void) {
     print("): '");
     print(expected);
     print("'\n");
-    arena_free(debug_arena);
+    arena_destroy(debug_arena);
 
     assert(nread == expected_len);
     assert(base_memcmp(buffer, expected, expected_len) == 0);
@@ -1094,7 +1142,7 @@ void test_args(void) {
     assert(ret == 0);
 
     print("argc=");
-    Arena *arena = arena_new(4096);
+    Arena *arena = arena_create(4096);
     println(str_lit("{}"), (int)argc);
     print("argv_buf_size=");
     println(str_lit("{}"), (int)argv_buf_size);
@@ -1131,7 +1179,7 @@ void test_args(void) {
     // that silently drop or reorder argv, because the assertions are
     // driven from a side channel (the file) that does not flow through
     // the platform_args_* path.
-    Arena* expected_arena = arena_new(4096);
+    Arena* expected_arena = arena_create(4096);
     string expected;
     if (read_file(expected_arena, str_lit("expected_args.txt"), &expected)) {
         // `expected.size` from read_file includes the trailing '\0'.
@@ -1159,12 +1207,12 @@ void test_args(void) {
         print("Verified argv against expected_args.txt: ");
         println(str_lit("{} args"), (int)(argc - 1));
     }
-    arena_free(expected_arena);
+    arena_destroy(expected_arena);
 
     // Free buffers
     buddy_free(argv);
     buddy_free(argv_buf);
-    arena_free(arena);
+    arena_destroy(arena);
 
     print("Command line arguments tests passed\n");
 }

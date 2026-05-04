@@ -32,7 +32,7 @@ static inline uintptr_t align_up(uintptr_t val) {
     return (val + ARENA_ALIGNMENT - 1) & ~(uintptr_t)(ARENA_ALIGNMENT - 1);
 }
 
-Arena *arena_new(size_t initial_size) {
+Arena *arena_create(size_t initial_size) {
     // Allocate the arena controller struct itself.
     Arena *arena = buddy_alloc(sizeof(Arena), NULL);
     if (!arena) {
@@ -141,7 +141,7 @@ try_alloc:
     goto try_alloc;
 }
 
-void arena_free(Arena *arena) {
+void arena_destroy(Arena *arena) {
     assert(arena);
     struct arena_chunk *current = arena->first_chunk;
     while (current) {

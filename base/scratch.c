@@ -13,8 +13,8 @@ Scratch scratch_begin() {
 Arena* scratch_arenas[2] = {NULL, NULL};
 
 void init_scratch_arenas() {
-    scratch_arenas[0] = arena_new(1024);
-    scratch_arenas[1] = arena_new(1024);
+    scratch_arenas[0] = arena_create(1024);
+    scratch_arenas[1] = arena_create(1024);
 }
 
 Scratch scratch_begin_avoid_conflict(Arena *conflict) {

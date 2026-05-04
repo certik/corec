@@ -16,7 +16,7 @@ string str_from_cstr_len_view_const(const char *cstr, uint64_t size) {
 }
 
 char *str_to_cstr_copy(Arena *arena, string str) {
-    char *cstr = arena_alloc_array(arena, char, str.size+1);
+    char *cstr = arena_new_array(arena, char, str.size+1);
     base_memcpy(cstr, str.str, str.size);
     cstr[str.size] = '\0';
     return cstr;
@@ -37,7 +37,7 @@ string str_substr(string str, uint64_t min, uint64_t size) {
 string int_to_string(Arena *arena, int value) {
     char buf[32];
     size_t len = int_to_str(value, buf);
-    char *str = arena_alloc_array(arena, char, len);
+    char *str = arena_new_array(arena, char, len);
     base_memcpy(str, buf, len);
     return (string){str, len};
 }
@@ -45,7 +45,7 @@ string int_to_string(Arena *arena, int value) {
 string uint_to_string(Arena *arena, uint64_t value) {
     char buf[32];
     size_t len = uint64_to_str(value, buf);
-    char *str = arena_alloc_array(arena, char, len);
+    char *str = arena_new_array(arena, char, len);
     base_memcpy(str, buf, len);
     return (string){str, len};
 }
@@ -53,13 +53,13 @@ string uint_to_string(Arena *arena, uint64_t value) {
 string double_to_string(Arena *arena, double value, int precision) {
     char buf[32];
     size_t len = double_to_str(value, buf, precision);
-    char *str = arena_alloc_array(arena, char, len);
+    char *str = arena_new_array(arena, char, len);
     base_memcpy(str, buf, len);
     return (string){str, len};
 }
 
 string char_to_string(Arena *arena, char c) {
-    char *buf = arena_alloc_array(arena, char, 1);
+    char *buf = arena_new_array(arena, char, 1);
     *buf = c;
     return (string){buf, 1};
 }
@@ -67,7 +67,7 @@ string char_to_string(Arena *arena, char c) {
 string str_concat(Arena *arena, string a, string b) {
     size_t total = a.size + b.size;
     if (total == 0) return (string){NULL, 0};
-    char *str = arena_alloc_array(arena, char, total);
+    char *str = arena_new_array(arena, char, total);
     base_memcpy(str, a.str, a.size);
     base_memcpy(str + a.size, b.str, b.size);
     return (string){str, total};
@@ -76,7 +76,7 @@ string str_concat(Arena *arena, string a, string b) {
 string str_copy(Arena *arena, string a) {
     char *str = NULL;
     if (a.size > 0) {
-        str = arena_alloc_array(arena, char, a.size);
+        str = arena_new_array(arena, char, a.size);
         base_memcpy(str, a.str, a.size);
     }
     return (string){str, a.size};
