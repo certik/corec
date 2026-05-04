@@ -4,6 +4,11 @@
 #include <base/arena.h>
 
 // Helper Macros (internal use)
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define _GV_CONCAT_IMPL(a, b) a##b
 #define _GV_CONCAT(a, b) _GV_CONCAT_IMPL(a, b)
 
@@ -85,3 +90,6 @@
         } \
         return NULL; \
     }
+#ifdef __cplusplus
+}
+#endif

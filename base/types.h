@@ -1,6 +1,27 @@
 #pragma once
 
-// Basic integer types for nostdlib builds
+// Basic integer types and a few macros.
+//
+// corec defines its own size_t/uint8_t/int64_t/etc. typedefs and integer
+// limit macros. These typedefs use the same underlying primitive types as
+// every libc we target (size_t = unsigned long on 64-bit Unix and
+// uint64_t/Windows; int64_t = long long; uint8_t = unsigned char; ...).
+// C11 and C++ both permit redundant identical typedef redeclarations, so
+// these definitions can coexist with system <stddef.h>/<stdint.h>/<cstdint>
+// in the same TU.
+//
+// Macros (NULL, SIZE_MAX, INT*_MAX, FLT_MAX, true/false) are guarded with
+// #ifndef so they don't clash with the system definitions if those happen
+// to be included first (e.g. via libc++ headers in a hosted C++ TU).
+//
+// The result: corec headers never include any system or libc header, while
+// remaining safe to include in hosted C/C++ TUs (e.g. when bridging the
+// mlir C API to upstream LLVM/MLIR).
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;
 typedef unsigned int uint32_t;
@@ -23,7 +44,7 @@ typedef long int64_t;
 typedef signed long long int64_t;
 #endif
 
-// Pointer-sized integer type and size types (only for nostdlib builds)
+// Pointer-sized integer type and size types
 
 #if defined(_WIN32) && defined(_WIN64)
     // For 64 bit Windows the long is 4 bytes, but pointer is 8 bytes
@@ -47,17 +68,32 @@ typedef signed long long int64_t;
     typedef signed long ssize_t;
 #endif
 
+#ifndef NULL
+#  ifdef __cplusplus
+#    define NULL nullptr
+#  else
+#    define NULL ((void*)0)
+#  endif
+#endif
 
-// NULL, boolean types, and limits
+#ifndef __cplusplus
+// In C, bool is provided by <stdbool.h> (a macro for _Bool). Mirror that.
+#  ifndef bool
+#    define bool _Bool
+#  endif
+#  ifndef true
+#    define true 1
+#  endif
+#  ifndef false
+#    define false 0
+#  endif
+#endif
 
-#define NULL ((void*)0)
-
-// Boolean type and constants
-#define bool _Bool
-#define true 1
-#define false 0
+#ifndef SIZE_MAX
 #define SIZE_MAX ((size_t)-1)
+#endif
 
+#ifndef INT8_C
 #define INT8_C(value) value
 #define UINT8_C(value) value##u
 #define INT16_C(value) value
@@ -68,11 +104,29 @@ typedef signed long long int64_t;
 #define UINT64_C(value) value##ull
 #define INTMAX_C(value) INT64_C(value)
 #define UINTMAX_C(value) UINT64_C(value)
+#endif
+
+#ifndef UINT16_MAX
 #define UINT16_MAX ((uint16_t)0xFFFFu)
+#endif
+#ifndef INT32_MAX
 #define INT32_MAX ((int32_t)0x7FFFFFFF)
+#endif
+#ifndef UINT32_MAX
 #define UINT32_MAX ((uint32_t)0xFFFFFFFFu)
+#endif
+#ifndef INT64_MAX
 #define INT64_MAX ((int64_t)0x7FFFFFFFFFFFFFFFll)
+#endif
+#ifndef UINT64_MAX
 #define UINT64_MAX ((uint64_t)0xFFFFFFFFFFFFFFFFull)
+#endif
+#ifndef FLT_MAX
 #define FLT_MAX 3.402823466e+38F
+#endif
 
 #define array_size(a) (sizeof(a) / sizeof((a)[0]))
+
+#ifdef __cplusplus
+}
+#endif

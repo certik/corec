@@ -6,6 +6,10 @@
 // Self-contained implementations with no external dependencies
 // Prefixed with base_ to avoid conflicts with system headers
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 size_t base_strlen(const char *str);
 char *base_strcpy(char *dest, const char *src);
 int base_strcmp(const char *s1, const char *s2);
@@ -20,3 +24,6 @@ char *base_strncpy(char *dest, const char *src, size_t n);
 size_t base_strcspn(const char *s, const char *reject);
 int base_strncmp(const char *s1, const char *s2, size_t n);
 char *base_strstr(const char *haystack, const char *needle);
+#ifdef __cplusplus
+}
+#endif

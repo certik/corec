@@ -3,6 +3,10 @@
 #include <base/types.h>
 #include <base/arena.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct {
     Arena *arena;
     arena_pos_t saved_pos;
@@ -52,3 +56,6 @@ Scratch scratch_begin_from_arena(Arena *arena);
 // Marks the end of the scratch region. Resets the arena that was used to
 // create the scratch to the position before the scratch.
 void scratch_end(Scratch scratch);
+#ifdef __cplusplus
+}
+#endif

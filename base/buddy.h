@@ -2,6 +2,10 @@
 
 #include <base/types.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void buddy_init(void);
 
 // Allocate memory from the buddy allocator.
@@ -14,3 +18,6 @@ void buddy_free(void *ptr);
 
 // Print detailed statistics about the buddy allocator state
 void buddy_print_stats();
+#ifdef __cplusplus
+}
+#endif

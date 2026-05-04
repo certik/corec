@@ -9,6 +9,10 @@
 // are safe to use anywhere, including in arena / buddy allocator code, or in
 // asserts.
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * @brief Writes all data from the iovecs to the specified file descriptor.
  *
@@ -46,3 +50,6 @@ void println_explicit(string fmt, size_t arg_count, ...);
     println_explicit(fmt, COUNT_ARGS(__VA_ARGS__) __VA_OPT__(,) APPLY_WITH_COUNT(COUNT_ARGS(__VA_ARGS__) __VA_OPT__(,) __VA_ARGS__))
 
 #define PRINT_LOG(x) println(str_lit("{}:{} in {}(): {}"), str_lit(__FILE__), __LINE__, str_lit(__func__), str_lit(x))
+#ifdef __cplusplus
+}
+#endif
