@@ -49,7 +49,7 @@ typedef signed long long int64_t;
 #if defined(_WIN32) && defined(_WIN64)
     // For 64 bit Windows the long is 4 bytes, but pointer is 8 bytes
     typedef uint64_t uintptr_t;
-    typedef uint64_t ptrdiff_t;
+    typedef int64_t ptrdiff_t;
 #else
     // For 32 bit platforms and wasm64 the long and a pointer is 4 bytes, for
     // 64 bit macOS/Linux the long and pointer is 8 bytes
