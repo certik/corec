@@ -6,6 +6,11 @@
 #include <base/mem.h>
 
 // --- Helper Macros (internal use) ---
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define _GV_CONCAT_IMPL(a, b) a##b
 #define _GV_CONCAT(a, b) _GV_CONCAT_IMPL(a, b)
 
@@ -68,3 +73,6 @@
 
 
 DEFINE_VECTOR_FOR_TYPE(int64_t, vector_i64)
+#ifdef __cplusplus
+}
+#endif

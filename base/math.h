@@ -7,6 +7,11 @@
 // `(float)(1e308 * 1e308)` overflows to +inf at compile time on every
 // conforming compiler (Clang, GCC, MSVC), so no compiler-specific spelling
 // is needed.
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef INFINITY
 #define INFINITY ((float)(1e308 * 1e308))
 #endif
@@ -41,3 +46,6 @@ float fast_tanf(float x);
 // discoverability alongside the other math primitives).
 double fast_sqrt(double x);
 float fast_sqrtf(float x);
+#ifdef __cplusplus
+}
+#endif

@@ -5,6 +5,9 @@
 #include <base/string.h>
 #include <base/vector.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef enum {
     ARG_INT8,
@@ -73,3 +76,6 @@ string format_explicit(Arena *arena, string fmt, size_t arg_count, ...);
 
 #define format(arena, fmt, ...) \
     format_explicit(arena, fmt, COUNT_ARGS(__VA_ARGS__) __VA_OPT__(,) APPLY_WITH_COUNT(COUNT_ARGS(__VA_ARGS__) __VA_OPT__(,) __VA_ARGS__))
+#ifdef __cplusplus
+}
+#endif

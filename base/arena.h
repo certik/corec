@@ -3,6 +3,11 @@
 #include <base/types.h>
 
 // An opaque data type for the arena allocator.
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct arena_s Arena;
 
 // Forward-declare the internal chunk struct. This is needed for the arena_pos_t
@@ -133,3 +138,6 @@ size_t arena_current_chunk_index(Arena *arena);
  */
 #define arena_new_array(arena, type, count) \
     ((type *)arena_alloc((arena), sizeof(type) * (size_t)(count)))
+#ifdef __cplusplus
+}
+#endif

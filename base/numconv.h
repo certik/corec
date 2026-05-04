@@ -8,6 +8,11 @@
 
 // Convert unsigned 64-bit integer to string
 // Returns length of string written (not including null terminator)
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 size_t uint64_to_str(uint64_t val, char* buf);
 
 // Convert signed 64-bit integer to string
@@ -38,3 +43,6 @@ int base_vsnprintf(char *str, size_t size, const char *format, va_list args);
 // Supports: %d, %i, %u, %ld, %li, %lu, %lld, %lli, %llu, %zu, %x, %X, %lx, %lX, %llx, %llX, %p, %c, %s, %f, %.Nf, %%
 // Returns number of characters written (not including null terminator)
 int base_snprintf(char *str, size_t size, const char *format, ...);
+#ifdef __cplusplus
+}
+#endif
