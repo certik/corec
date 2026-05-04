@@ -9,6 +9,7 @@
 #include <base/string.h>
 #include <base/math.h>
 #include <base/mem.h>
+#include <base/numconv.h>
 #include <base/assert.h>
 #include <test_base.h>
 
@@ -654,6 +655,41 @@ void test_format(void) {
     println(str_lit("Format tests passed"));
 }
 
+static void check_snprintf(const char *fmt, double val, const char *expected, const char *label) {
+    char buf[32];
+    int n = base_snprintf(buf, sizeof(buf), fmt, val);
+    (void)n;
+    if (!str_eq(str_from_cstr_view(buf), str_from_cstr_view((char*)expected))) {
+        println(str_lit("FAIL: {} fmt={} got='{}' expected='{}'"),
+                str_from_cstr_view((char*)label),
+                str_from_cstr_view((char*)fmt),
+                str_from_cstr_view(buf),
+                str_from_cstr_view((char*)expected));
+        assert(0);
+    }
+}
+
+void test_numconv(void) {
+    println(str_lit("## Testing numconv (base_snprintf %f / %e)..."));
+
+    // %f sanity
+    check_snprintf("%.2f", 1.5, "1.50", "%f");
+    check_snprintf("%.0f", 7.0, "7", "%f no frac");
+
+    // %e: positive, negative, zero, large, tiny
+    check_snprintf("%.6e",  1.0,    "1.000000e+00",  "%e one");
+    check_snprintf("%.6e", -1.5,   "-1.500000e+00",  "%e neg");
+    check_snprintf("%.6e",  0.0,    "0.000000e+00",  "%e zero");
+    check_snprintf("%.6e",  1.0e20, "1.000000e+20",  "%e big");
+    check_snprintf("%.6e",  1.0e-20,"1.000000e-20",  "%e tiny");
+
+    // %e at non-default precision (rounding)
+    check_snprintf("%.2e", 12345.0, "1.23e+04", "%e prec2");
+    check_snprintf("%.0e", 1.5,     "2e+00",    "%e prec0");
+
+    println(str_lit("numconv tests passed"));
+}
+
 void test_io(void) {
     println(str_lit("## Testing io..."));
     Arena* arena = arena_new(1024*20);
@@ -1170,6 +1206,7 @@ void test_base(void) {
     test_arena();
     test_scratch();
     test_format();
+    test_numconv();
     test_io();
     test_file_flags();
     test_hashtable_int_string();
