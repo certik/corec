@@ -113,7 +113,7 @@ bool read_file(Arena *arena, const string filename, string *text) {
     size_t filesize = (size_t)filesize_u64;
 
     // Allocate buffer
-    char *bytes = arena_alloc_array(arena, char, filesize+1);
+    char *bytes = arena_new_array(arena, char, filesize+1);
 
     // Read file contents using iovec
     iovec_t iov = { .iov_base = bytes, .iov_len = filesize };

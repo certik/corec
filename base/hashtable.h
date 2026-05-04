@@ -27,7 +27,7 @@
     static inline void _GV_CONCAT3(NAME, _, init)(Arena *arena, NAME *ht, size_t initial_buckets) { \
         ht->num_buckets = initial_buckets; \
         ht->size = 0; \
-        ht->buckets = arena_alloc_array(arena, _GV_CONCAT3(NAME, _, Entry), initial_buckets); \
+        ht->buckets = arena_new_array(arena, _GV_CONCAT3(NAME, _, Entry), initial_buckets); \
         for (size_t i = 0; i < initial_buckets; i++) { \
             ht->buckets[i].occupied = 0; \
         } \
@@ -36,7 +36,7 @@
     static inline void _GV_CONCAT3(NAME, _, insert)(Arena *arena, NAME *ht, KEY_TYPE key, VALUE_TYPE value) { \
         if (ht->size >= 0.75 * ht->num_buckets) { \
             size_t new_num_buckets = ht->num_buckets * 2; \
-            _GV_CONCAT3(NAME, _, Entry) *new_buckets = arena_alloc_array(arena, _GV_CONCAT3(NAME, _, Entry), new_num_buckets); \
+            _GV_CONCAT3(NAME, _, Entry) *new_buckets = arena_new_array(arena, _GV_CONCAT3(NAME, _, Entry), new_num_buckets); \
             for (size_t i = 0; i < new_num_buckets; i++) { \
                 new_buckets[i].occupied = 0; \
             } \

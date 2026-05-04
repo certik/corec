@@ -215,7 +215,7 @@ string format_explicit_varg(Arena *arena, string fmt, size_t arg_count,
         if (spec.width > 0 && s.size < spec.width) {
             size_t pad_size = spec.width - s.size;
             char pad_char = ' ';
-            string padding = {.str = arena_alloc_array(scratch.arena, char, pad_size), .size = pad_size};
+            string padding = {.str = arena_new_array(scratch.arena, char, pad_size), .size = pad_size};
             base_memset(padding.str, pad_char, pad_size);
             if (spec.alignment == '<') {
                 s = str_concat(scratch.arena, s, padding);

@@ -28,7 +28,7 @@ typedef struct {
  * may be larger to meet alignment and minimum size requirements.
  * @return A pointer to the newly created arena, or NULL on failure.
  */
-Arena *arena_new(size_t initial_size);
+Arena *arena_create(size_t initial_size);
 
 /**
  * @brief Allocates a block of memory from the arena.
@@ -64,7 +64,7 @@ arena_pos_t arena_get_pos(Arena *arena);
  * once the restored chunk fills up again, arena_alloc walks the existing
  * `next` pointers and bump-allocates from those already-allocated chunks
  * before requesting new memory from the buddy allocator. The chunks are
- * only released when arena_free is called.
+ * only released when arena_destroy is called.
  *
  * @param arena A pointer to the arena.
  * @param pos The saved position to restore.
@@ -80,7 +80,7 @@ void arena_reset(Arena *arena, arena_pos_t pos);
  *
  * @param arena A pointer to the arena.
  */
-void arena_free(Arena *arena);
+void arena_destroy(Arena *arena);
 
 /**
  * @brief Returns the total number of chunks in the arena.
@@ -107,14 +107,29 @@ size_t arena_chunk_count(Arena *arena);
 size_t arena_current_chunk_index(Arena *arena);
 
 /**
- * @brief Convenience macro to allocate an array of elements from the arena.
+ * @brief Convenience macro to allocate a single element of `type` from the arena.
  *
- * This macro allocates memory for 'count' elements of 'type' and returns
- * a pointer to the first element, cast to the appropriate type.
+ * Behaves like C++ `new type`: returns a pointer to one freshly allocated
+ * `type`, cast to `type *`. The memory is uninitialized.
  *
  * @param arena A pointer to the arena.
- * @param type The type of elements to allocate.
- * @param count The number of elements to allocate.
- * @return A pointer to the allocated array, cast to 'type*'.
+ * @param type  The type of the element to allocate.
+ * @return A pointer to the allocated element, cast to `type *`.
  */
-#define arena_alloc_array(arena, type, count) ((type*)arena_alloc((arena), sizeof(type) * (count)))
+#define arena_new(arena, type) \
+    ((type *)arena_alloc((arena), sizeof(type)))
+
+/**
+ * @brief Convenience macro to allocate an array of `count` elements of `type`
+ * from the arena.
+ *
+ * Behaves like C++ `new type[count]`: returns a pointer to the first element
+ * of a freshly allocated array, cast to `type *`. The memory is uninitialized.
+ *
+ * @param arena A pointer to the arena.
+ * @param type  The type of elements to allocate.
+ * @param count The number of elements to allocate.
+ * @return A pointer to the allocated array, cast to `type *`.
+ */
+#define arena_new_array(arena, type, count) \
+    ((type *)arena_alloc((arena), sizeof(type) * (size_t)(count)))
