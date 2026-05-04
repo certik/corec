@@ -22,6 +22,7 @@ size_t int_to_str(int val, char* buf);
 // Returns length of string written (not including null terminator)
 // precision: number of decimal places (-1 for default of 6)
 size_t double_to_str(double val, char* buf, int precision);
+size_t double_to_str_e(double val, char* buf, int precision);
 
 // Convert unsigned 64-bit integer to hexadecimal string
 // Returns length of string written (not including null terminator)

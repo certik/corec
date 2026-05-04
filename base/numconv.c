@@ -68,6 +68,65 @@ size_t double_to_str(double val, char* buf, int precision) {
     return pos;
 }
 
+// Format `val` as `[-]d.ddde[+-]NN` (C's "%e"), with `precision` fractional
+// digits in the mantissa. Always at least two exponent digits.
+size_t double_to_str_e(double val, char* buf, int precision) {
+    size_t pos = 0;
+
+    int neg = 0;
+    if (val < 0) { neg = 1; val = -val; }
+    if (precision < 0) precision = 6;
+    // Clamp precision so the integer mantissa fits in int64_t.
+    if (precision > 17) precision = 17;
+
+    // Normalize to [1, 10) and compute the decimal exponent.
+    int exp = 0;
+    if (val != 0.0) {
+        while (val >= 10.0) { val /= 10.0; exp++; }
+        while (val < 1.0)   { val *= 10.0; exp--; }
+    }
+
+    // Compute the integer mantissa with `precision+1` digits, rounded.
+    double scale = 1.0;
+    for (int i = 0; i < precision; i++) scale *= 10.0;
+    int64_t mantissa = (int64_t)(val * scale + 0.5);
+    int64_t cutoff = 10;
+    for (int i = 0; i < precision; i++) cutoff *= 10;
+    if (mantissa >= cutoff) { mantissa /= 10; exp++; }
+
+    if (neg) buf[pos++] = '-';
+
+    // First digit (integer part).
+    int64_t scale_i = (int64_t)scale;
+    int first = (int)(mantissa / scale_i);
+    int64_t frac = mantissa % scale_i;
+    if (first > 9) first = 9;
+    buf[pos++] = (char)('0' + first);
+
+    if (precision > 0) {
+        buf[pos++] = '.';
+        char digbuf[32];
+        int n = 0;
+        int64_t r = frac;
+        while (r > 0) { digbuf[n++] = (char)('0' + (r % 10)); r /= 10; }
+        while (n < precision) digbuf[n++] = '0';
+        while (n > 0) buf[pos++] = digbuf[--n];
+    }
+
+    buf[pos++] = 'e';
+    if (exp < 0) { buf[pos++] = '-'; exp = -exp; }
+    else         { buf[pos++] = '+'; }
+
+    char digits[8];
+    int n = 0;
+    if (exp == 0) digits[n++] = '0';
+    while (exp > 0) { digits[n++] = (char)('0' + (exp % 10)); exp /= 10; }
+    while (n < 2) digits[n++] = '0';
+    while (n > 0) buf[pos++] = digits[--n];
+
+    return pos;
+}
+
 size_t uint64_to_hex_str(uint64_t val, char* buf, int uppercase) {
     if (val == 0) {
         buf[0] = '0';
@@ -228,6 +287,16 @@ int base_vsnprintf(char *str, size_t size, const char *format, va_list args) {
                     double val = va_arg(args, double);
                     if (precision < 0) precision = 6;
                     size_t len = double_to_str(val, temp_buf, precision);
+                    size_t copy_len = (pos + len < size - 1) ? len : (size - 1 - pos);
+                    for (size_t i = 0; i < copy_len; i++) {
+                        str[pos++] = temp_buf[i];
+                    }
+                    break;
+                }
+                case 'e': {
+                    double val = va_arg(args, double);
+                    if (precision < 0) precision = 6;
+                    size_t len = double_to_str_e(val, temp_buf, precision);
                     size_t copy_len = (pos + len < size - 1) ? len : (size - 1 - pos);
                     for (size_t i = 0; i < copy_len; i++) {
                         str[pos++] = temp_buf[i];
