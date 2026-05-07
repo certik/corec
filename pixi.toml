@@ -130,6 +130,22 @@ clang \
 
 test_macos = { cmd = "./corec_test_macos", depends-on = ["build_macos"], description = "Run corec_test_macos native test binary" }
 
+# ---- Bootstrap experiment: compile corec with the tinyC compiler. -----
+#
+# tinyC (in ../mlir/examples/tinyc) is a small C-subset compiler implemented
+# on top of the C MLIR API. We use it as a frontend here: each .c source is
+# first preprocessed with system clang (to dispatch __VA_OPT__, COUNT_ARGS,
+# __attribute__, _Pragma, etc., which are genuine freestanding-C features
+# we do not want to re-implement in tinyC's tiny preprocessor), then the
+# resulting translation unit is fed to tinyC, which emits LLVM IR. The
+# .ll files are then linked together with clang exactly as build_macos does.
+#
+# tinyC binary is expected at ../mlir/tinyc (build it with
+# `pixi run -e upstream build_tinyc_upstream` in the mlir repo).
+build_macos_tinyc = { cmd = "bash scripts/build_macos_tinyc.sh", description = "Build corec_test_macos_tinyc using the tinyC compiler (../mlir/tinyc) for compile and clang for link" }
+
+test_macos_tinyc = { cmd = "./corec_test_macos_tinyc", depends-on = ["build_macos_tinyc"], description = "Run corec_test_macos_tinyc — corec compiled with tinyC" }
+
 #=============================================================================
 # Windows
 #=============================================================================
