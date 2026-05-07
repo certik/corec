@@ -49,7 +49,7 @@ for src in "${SOURCES[@]}"; do
     pp="$WORK/$(echo "$src" | tr '/' '_').i"
     ll="$WORK/$(echo "$src" | tr '/' '_').ll"
     echo "[clang -E] $src"
-    clang -E -P -nostdinc -fno-builtin -I platform -I . "$src" -o "$pp"
+    clang -E -P -nostdinc -fno-builtin -DNDEBUG -I platform -I . "$src" -o "$pp"
     echo "[tinyc   ] $pp -> $ll"
     "$TINYC" --emit=llvm -o "$ll" "$pp"
     LL_FILES+=("$ll")

@@ -25,6 +25,8 @@ DEFINE_HASHTABLE_FOR_TYPES(string, int, MapStringInt)
 DEFINE_VECTOR_FOR_TYPE(int, VecInt)
 DEFINE_VECTOR_FOR_TYPE(int*, VecIntP)
 
+typedef struct { int x; int y; char z; } TestStruct;
+
 // Simple print_str function for base tests
 static void print_str(const char *str) {
     ciovec_t iov = {str, base_strlen(str)};
@@ -237,15 +239,15 @@ void test_arena(void) {
     arena_pos_t saved_pos_0 = arena_get_pos(main_arena);
 
     print_str("Allocating three strings in the arena...\n");
-    char s1[] = "Hello from the Arena!\n";
+    const char *s1 = "Hello from the Arena!\n";
     char *p_s1 = arena_alloc(main_arena, base_strlen(s1) + 1);
     base_strcpy(p_s1, s1);
 
-    char s2[] = "This is a standalone C program. ";
+    const char *s2 = "This is a standalone C program. ";
     char *p_s2 = arena_alloc(main_arena, base_strlen(s2) + 1);
     base_strcpy(p_s2, s2);
 
-    char s3[] = "It works on WASM, Linux, macOS, and Windows.\n";
+    const char *s3 = "It works on WASM, Linux, macOS, and Windows.\n";
     char *p_s3 = arena_alloc(main_arena, base_strlen(s3) + 1);
     base_strcpy(p_s3, s3);
 
@@ -257,7 +259,7 @@ void test_arena(void) {
     print_str("Saving position and making temporary allocations...\n");
     arena_pos_t saved_pos = arena_get_pos(main_arena);
 
-    char s_temp[] = "[--THIS IS A TEMPORARY ALLOCATION THAT WILL BE ROLLED BACK--]";
+    const char *s_temp = "[--THIS IS A TEMPORARY ALLOCATION THAT WILL BE ROLLED BACK--]";
     char *p_temp = arena_alloc(main_arena, base_strlen(s_temp) + 1);
     base_strcpy(p_temp, s_temp);
     print_str("Allocated temporary string: ");
@@ -268,7 +270,7 @@ void test_arena(void) {
     arena_reset(main_arena, saved_pos);
 
     print_str("Allocating again from the saved position...\n");
-    char s4[] = "String 3, allocated after reset.\n";
+    const char *s4 = "String 3, allocated after reset.\n";
     char *p_s4 = arena_alloc(main_arena, base_strlen(s4) + 1);
     base_strcpy(p_s4, s4);
     print_str("Allocated: ");
@@ -286,24 +288,22 @@ void test_arena(void) {
     print_str("Arena has been reset. Previous pointers are now invalid.\n");
     print_str("Allocating a new string to show that memory is being reused:\n");
 
-    char s5[] = "This new string overwrites the old data after the reset!\n";
+    const char *s5 = "This new string overwrites the old data after the reset!\n";
     char *p_s5 = arena_alloc(main_arena, base_strlen(s5) + 1);
     base_strcpy(p_s5, s5);
     print_str(p_s5);
 
     // Test typed allocation macros: arena_new and arena_new_array.
     print_str("Testing arena_new and arena_new_array typed allocation macros...\n");
-    typedef struct { int x; double y; char z; } TestStruct;
-
     TestStruct *one = arena_new(main_arena, TestStruct);
     assert(one != NULL);
     // Verify alignment is at least sufficient for the struct.
     assert(((uintptr_t)one % _Alignof(TestStruct)) == 0);
     one->x = 42;
-    one->y = 3.14;
+    one->y = 314;
     one->z = 'a';
     assert(one->x == 42);
-    assert(one->y == 3.14);
+    assert(one->y == 314);
     assert(one->z == 'a');
 
     int *single_int = arena_new(main_arena, int);
