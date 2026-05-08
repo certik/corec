@@ -181,8 +181,14 @@ size_t platform_heap_size() {
     return committed_pages * PLATFORM_WASM_PAGE_SIZE;
 }
 
+#ifndef PLATFORM_SKIP_ENTRY
 // Stub for __chkstk which is normally provided by the C runtime
-// Since we're using /kernel flag, we need to provide this ourselves
+// Since we're using /kernel flag, we need to provide this ourselves.
+// When PLATFORM_SKIP_ENTRY is defined we are linking against the real
+// CRT (e.g. /MD), which provides a correct __chkstk that probes /
+// commits stack pages; replacing it with this no-op stub would cause
+// silent stack-guard-page faults (0xC0000005) for any function whose
+// frame exceeds one page (4KB on x64).
 void __chkstk() {
     // Do nothing - we're not using large stack allocations
 }
@@ -190,6 +196,7 @@ void __chkstk() {
 // _fltused is required by MSVC when using floating-point operations
 // This symbol must be present when using floating-point without the CRT
 int _fltused = 1;
+#endif
 
 // Process exit function
 void platform_exit(int status) {
