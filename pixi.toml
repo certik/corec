@@ -161,6 +161,8 @@ cl \
     base/exit.c \
     platform/platform_windows.c \
     && \
+ml64 /nologo /c platform/win_chkstk_x64.asm \
+    && \
 link \
     /nologo \
     /subsystem:console \
@@ -182,6 +184,7 @@ link \
     exit.obj \
     assert.obj \
     platform_windows.obj \
+    win_chkstk_x64.obj \
     /out:corec_test_windows.exe
 """, description = "Build corec_test_windows.exe native binary (Windows only; requires MSVC vcvars64)" }
 
