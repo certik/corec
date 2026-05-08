@@ -25,10 +25,8 @@ DEFINE_HASHTABLE_FOR_TYPES(string, int, MapStringInt)
 DEFINE_VECTOR_FOR_TYPE(int, VecInt)
 DEFINE_VECTOR_FOR_TYPE(int*, VecIntP)
 
-typedef struct { int x; int y; char z; } TestStruct;
-
-// Simple print_str function for base tests
-static void print_str(const char *str) {
+// Simple print function for base tests
+static void print(const char *str) {
     ciovec_t iov = {str, base_strlen(str)};
     write_all(PLATFORM_STDOUT_FD, &iov, 1);
 }
@@ -45,18 +43,18 @@ static char* test_nested_scratch_inner(Arena *outer_arena, bool avoid_conflict) 
     // Fill result using outer_arena AFTER inner scratch begins
     char *result = arena_alloc(outer_arena, 50);
     base_strcpy(result, "ABC");
-    print_str("  ARENAS: inner=");
+    print("  ARENAS: inner=");
     // Simple pointer printing - just show it's set
-    print_str(inner.arena ? "set" : "null");
-    print_str(", outer=");
-    print_str(outer_arena ? "set" : "null");
-    print_str("\n");
+    print(inner.arena ? "set" : "null");
+    print(", outer=");
+    print(outer_arena ? "set" : "null");
+    print("\n");
 
     char *inner_temp = arena_alloc(inner.arena, 50);
     base_strcpy(inner_temp, "Inner temp");
-    print_str("  In inner scratch: ");
-    print_str(inner_temp);
-    print_str("\n");
+    print("  In inner scratch: ");
+    print(inner_temp);
+    print("\n");
 
     if (avoid_conflict) {
         assert(inner.arena != outer_arena);
@@ -76,9 +74,9 @@ static void test_nested_scratch_outer(bool avoid_conflict) {
     base_strcpy(outer_temp2, "XXX");
 
     if (avoid_conflict) {
-        print_str("  In outer scratch after inner: ");
-        print_str(outer_temp);
-        print_str("\n");
+        print("  In outer scratch after inner: ");
+        print(outer_temp);
+        print("\n");
 
         // Values are different (correct)
         assert(outer_temp[0] == 'A');
@@ -92,9 +90,9 @@ static void test_nested_scratch_outer(bool avoid_conflict) {
         // and the pointers are different (correct)
         assert(outer_temp != outer_temp2);
     } else {
-        print_str("  In outer scratch after inner: ");
-        print_str(outer_temp);
-        print_str(" (corrupted!)\n");
+        print("  In outer scratch after inner: ");
+        print(outer_temp);
+        print(" (corrupted!)\n");
 
         // This demonstrates the bug: scratch_begin() without conflict avoidance allows
         // both scopes to share the same arena, and scratch_end(inner) invalidates outer_temp
@@ -114,12 +112,12 @@ static void test_nested_scratch_outer(bool avoid_conflict) {
 }
 
 void test_platform_heap(void) {
-    print_str("## Testing platform heap operations...\n");
+    print("## Testing platform heap operations...\n");
     void* hb = platform_heap_base();
-    print_str("heap_base set\n");
+    print("heap_base set\n");
 
     size_t ms1 = platform_heap_size();
-    print_str("Initial heap size obtained\n");
+    print("Initial heap size obtained\n");
 
     void* mg = platform_heap_grow(4 * PLATFORM_WASM_PAGE_SIZE);
     assert((size_t)hb + ms1 == (size_t)mg);
@@ -132,7 +130,7 @@ void test_platform_heap(void) {
 
     ms2 = platform_heap_size();
     assert(ms1 + (4+8)*PLATFORM_WASM_PAGE_SIZE == ms2);
-    print_str("platform heap tests passed\n");
+    print("platform heap tests passed\n");
 }
 
 static bool float_close(float a, float b, float tol) {
@@ -148,7 +146,7 @@ static bool double_close(double a, double b, double tol) {
 }
 
 void test_math(void) {
-    print_str("## Testing math functions...\n");
+    print("## Testing math functions...\n");
 
     // fast_sqrt / fast_sqrtf — some backends use a Newton-Raphson
     // approximation, so allow ~1e-4 relative error.
@@ -187,123 +185,125 @@ void test_math(void) {
     assert(float_close(fast_cosf(2.0f * PI), 1.0f, 1e-3f));
     assert(float_close(fast_sinf(10.0f * PI + PI * 0.5f), 1.0f, 1e-2f));
 
-    print_str("math tests passed\n");
+    print("math tests passed\n");
 }
 
 void test_buddy(void) {
-    print_str("## Testing buddy allocator...\n");
+    print("## Testing buddy allocator...\n");
     buddy_init();
 
     // Allocate a small block (will round up to MIN_PAGE_SIZE)
     void* p1 = buddy_alloc(100, NULL);
     if (!p1) {
-        print_str("Allocation failed\n");
+        print("Allocation failed\n");
         platform_exit(1);
     }
-    print_str("Allocated p1\n");
+    print("Allocated p1\n");
 
     // Allocate a larger block
     void* p2 = buddy_alloc(8192, NULL);
     if (!p2) {
-        print_str("Allocation failed\n");
+        print("Allocation failed\n");
         platform_exit(1);
     }
-    print_str("Allocated p2\n");
+    print("Allocated p2\n");
 
     // Free the first block
     buddy_free(p1);
-    print_str("Freed p1\n");
+    print("Freed p1\n");
 
     // Allocate again to demonstrate reuse
     void* p3 = buddy_alloc(200, NULL);
     if (!p3) {
-        print_str("Allocation failed\n");
+        print("Allocation failed\n");
         platform_exit(1);
     }
-    print_str("Allocated p3\n");
+    print("Allocated p3\n");
 
     // Free remaining
     buddy_free(p2);
     buddy_free(p3);
-    print_str("Buddy allocator tests passed\n");
+    print("Buddy allocator tests passed\n");
 }
 
 void test_arena(void) {
-    print_str("## Testing arena allocator...\n");
-    print_str("Creating a new arena with an initial size of 4KB...\n");
+    print("## Testing arena allocator...\n");
+    print("Creating a new arena with an initial size of 4KB...\n");
     Arena *main_arena = arena_create(4096);
     if (!main_arena) {
-        print_str("Error: Failed to create the arena.\n");
+        print("Error: Failed to create the arena.\n");
         platform_exit(1);
     }
     arena_pos_t saved_pos_0 = arena_get_pos(main_arena);
 
-    print_str("Allocating three strings in the arena...\n");
-    const char *s1 = "Hello from the Arena!\n";
+    print("Allocating three strings in the arena...\n");
+    char s1[] = "Hello from the Arena!\n";
     char *p_s1 = arena_alloc(main_arena, base_strlen(s1) + 1);
     base_strcpy(p_s1, s1);
 
-    const char *s2 = "This is a standalone C program. ";
+    char s2[] = "This is a standalone C program. ";
     char *p_s2 = arena_alloc(main_arena, base_strlen(s2) + 1);
     base_strcpy(p_s2, s2);
 
-    const char *s3 = "It works on WASM, Linux, macOS, and Windows.\n";
+    char s3[] = "It works on WASM, Linux, macOS, and Windows.\n";
     char *p_s3 = arena_alloc(main_arena, base_strlen(s3) + 1);
     base_strcpy(p_s3, s3);
 
-    print_str("Strings allocated. Printing from the arena:\n");
-    print_str(p_s1);
-    print_str(p_s2);
-    print_str(p_s3);
+    print("Strings allocated. Printing from the arena:\n");
+    print(p_s1);
+    print(p_s2);
+    print(p_s3);
 
-    print_str("Saving position and making temporary allocations...\n");
+    print("Saving position and making temporary allocations...\n");
     arena_pos_t saved_pos = arena_get_pos(main_arena);
 
-    const char *s_temp = "[--THIS IS A TEMPORARY ALLOCATION THAT WILL BE ROLLED BACK--]";
+    char s_temp[] = "[--THIS IS A TEMPORARY ALLOCATION THAT WILL BE ROLLED BACK--]";
     char *p_temp = arena_alloc(main_arena, base_strlen(s_temp) + 1);
     base_strcpy(p_temp, s_temp);
-    print_str("Allocated temporary string: ");
-    print_str(p_temp);
-    print_str("\n");
+    print("Allocated temporary string: ");
+    print(p_temp);
+    print("\n");
 
-    print_str("Resetting to saved position...\n");
+    print("Resetting to saved position...\n");
     arena_reset(main_arena, saved_pos);
 
-    print_str("Allocating again from the saved position...\n");
-    const char *s4 = "String 3, allocated after reset.\n";
+    print("Allocating again from the saved position...\n");
+    char s4[] = "String 3, allocated after reset.\n";
     char *p_s4 = arena_alloc(main_arena, base_strlen(s4) + 1);
     base_strcpy(p_s4, s4);
-    print_str("Allocated: ");
-    print_str(p_s4);
+    print("Allocated: ");
+    print(p_s4);
 
-    print_str("Final content of the arena (first two strings are still valid):\n");
-    print_str("-> ");
-    print_str(p_s1);
-    print_str(p_s2);
-    print_str(p_s3);
-    print_str(p_s4);
+    print("Final content of the arena (first two strings are still valid):\n");
+    print("-> ");
+    print(p_s1);
+    print(p_s2);
+    print(p_s3);
+    print(p_s4);
 
-    print_str("Resetting the arena...\n");
+    print("Resetting the arena...\n");
     arena_reset(main_arena, saved_pos_0);
-    print_str("Arena has been reset. Previous pointers are now invalid.\n");
-    print_str("Allocating a new string to show that memory is being reused:\n");
+    print("Arena has been reset. Previous pointers are now invalid.\n");
+    print("Allocating a new string to show that memory is being reused:\n");
 
-    const char *s5 = "This new string overwrites the old data after the reset!\n";
+    char s5[] = "This new string overwrites the old data after the reset!\n";
     char *p_s5 = arena_alloc(main_arena, base_strlen(s5) + 1);
     base_strcpy(p_s5, s5);
-    print_str(p_s5);
+    print(p_s5);
 
     // Test typed allocation macros: arena_new and arena_new_array.
-    print_str("Testing arena_new and arena_new_array typed allocation macros...\n");
+    print("Testing arena_new and arena_new_array typed allocation macros...\n");
+    typedef struct { int x; double y; char z; } TestStruct;
+
     TestStruct *one = arena_new(main_arena, TestStruct);
     assert(one != NULL);
     // Verify alignment is at least sufficient for the struct.
     assert(((uintptr_t)one % _Alignof(TestStruct)) == 0);
     one->x = 42;
-    one->y = 314;
+    one->y = 3.14;
     one->z = 'a';
     assert(one->x == 42);
-    assert(one->y == 314);
+    assert(one->y == 3.14);
     assert(one->z == 'a');
 
     int *single_int = arena_new(main_arena, int);
@@ -337,31 +337,31 @@ void test_arena(void) {
 
     // Note: arena_alloc requires size > 0, so arena_new_array with count=0
     // is not supported (would assert on size==0).
-    print_str("arena_new and arena_new_array work correctly.\n");
+    print("arena_new and arena_new_array work correctly.\n");
 
-    print_str("Freeing the arena...\n");
+    print("Freeing the arena...\n");
     arena_destroy(main_arena);
-    print_str("Arena has been completely deallocated and memory returned to the system.\n");
+    print("Arena has been completely deallocated and memory returned to the system.\n");
 
     // Test arena expansion
-    print_str("Testing arena expansion...\n");
+    print("Testing arena expansion...\n");
     Arena *expand_arena = arena_create(1024); // Small initial size (will be rounded to MIN_CHUNK_SIZE=4096)
     if (!expand_arena) {
-        print_str("Error: Failed to create the arena.\n");
+        print("Error: Failed to create the arena.\n");
         platform_exit(1);
     }
 
     // Verify initial state: 1 chunk, at index 0
     assert(arena_chunk_count(expand_arena) == 1);
     assert(arena_current_chunk_index(expand_arena) == 0);
-    print_str("Initial state: 1 chunk, current index 0\n");
+    print("Initial state: 1 chunk, current index 0\n");
 
     // Allocate data that fits in first chunk
     char *block1 = arena_alloc(expand_arena, 2048);
     base_strcpy(block1, "Block 1 in first chunk");
-    print_str("Allocated block 1: ");
-    print_str(block1);
-    print_str("\n");
+    print("Allocated block 1: ");
+    print(block1);
+    print("\n");
 
     // Still in first chunk
     assert(arena_chunk_count(expand_arena) == 1);
@@ -372,30 +372,30 @@ void test_arena(void) {
     // So after 2048, we have ~6000 bytes left. Allocating 7000 forces expansion.
     char *block2 = arena_alloc(expand_arena, 7000);
     if (!block2) {
-        print_str("Error: Failed to expand arena.\n");
+        print("Error: Failed to expand arena.\n");
         platform_exit(1);
     }
     base_strcpy(block2, "Block 2 forces expansion to second chunk");
-    print_str("Allocated block 2 (forces expansion): ");
-    print_str(block2);
-    print_str("\n");
+    print("Allocated block 2 (forces expansion): ");
+    print(block2);
+    print("\n");
 
     // Verify expansion: now 2 chunks, at index 1
     assert(arena_chunk_count(expand_arena) == 2);
     assert(arena_current_chunk_index(expand_arena) == 1);
-    print_str("After expansion: 2 chunks, current index 1\n");
+    print("After expansion: 2 chunks, current index 1\n");
 
     // Verify both blocks are still valid (proves expansion worked)
-    print_str("Verifying block 1 is still valid: ");
-    print_str(block1);
-    print_str("\n");
+    print("Verifying block 1 is still valid: ");
+    print(block1);
+    print("\n");
 
     // Allocate another block to confirm arena still works after expansion
     char *block3 = arena_alloc(expand_arena, 256);
     base_strcpy(block3, "Block 3 after expansion");
-    print_str("Allocated block 3: ");
-    print_str(block3);
-    print_str("\n");
+    print("Allocated block 3: ");
+    print(block3);
+    print("\n");
 
     // Still in second chunk
     assert(arena_chunk_count(expand_arena) == 2);
@@ -405,10 +405,10 @@ void test_arena(void) {
     assert(block1[0] == 'B');
     assert(block2[0] == 'B');
     assert(block3[0] == 'B');
-    print_str("Arena expansion verified - 2 chunks created, currently at chunk index 1\n");
+    print("Arena expansion verified - 2 chunks created, currently at chunk index 1\n");
 
     // Test reset of expanded arena (multiple chunks)
-    print_str("Testing reset of expanded arena with multiple chunks...\n");
+    print("Testing reset of expanded arena with multiple chunks...\n");
     arena_pos_t pos_after_block1 = arena_get_pos(expand_arena);
     // Note: we need to save position after block1, before expansion
 
@@ -437,13 +437,13 @@ void test_arena(void) {
     assert(arena_chunk_count(reset_test_arena) == 2);
     assert(arena_current_chunk_index(reset_test_arena) == 1);
 
-    print_str("Before reset: r1=");
-    print_str(r1);
-    print_str(", r2=");
-    print_str(r2);
-    print_str(", r3=");
-    print_str(r3);
-    print_str(" (2 chunks, at index 1)\n");
+    print("Before reset: r1=");
+    print(r1);
+    print(", r2=");
+    print(r2);
+    print(", r3=");
+    print(r3);
+    print(" (2 chunks, at index 1)\n");
 
     // Reset to position after r1 (back to first chunk)
     arena_reset(reset_test_arena, pos_after_r1);
@@ -451,7 +451,7 @@ void test_arena(void) {
     // Verify reset: still 2 chunks total, but back at index 0
     assert(arena_chunk_count(reset_test_arena) == 2);
     assert(arena_current_chunk_index(reset_test_arena) == 0);
-    print_str("After reset: 2 chunks still exist, back at chunk index 0\n");
+    print("After reset: 2 chunks still exist, back at chunk index 0\n");
 
     // Allocate again - should reuse the space from r2/r3
     char *r4 = arena_alloc(reset_test_arena, 256);
@@ -460,31 +460,31 @@ void test_arena(void) {
     // Still in chunk 0
     assert(arena_current_chunk_index(reset_test_arena) == 0);
 
-    print_str("After reset and new allocation: r1=");
-    print_str(r1);
-    print_str(", r4=");
-    print_str(r4);
-    print_str("\n");
+    print("After reset and new allocation: r1=");
+    print(r1);
+    print(", r4=");
+    print(r4);
+    print("\n");
 
     assert(r1[0] == 'R' && r1[1] == '1');
     assert(r4[0] == 'R' && r4[1] == '4');
-    print_str("Reset of expanded arena verified - correctly returned to chunk 0\n");
+    print("Reset of expanded arena verified - correctly returned to chunk 0\n");
 
     arena_destroy(expand_arena);
     arena_destroy(reset_test_arena);
-    print_str("Arena allocator tests passed\n");
+    print("Arena allocator tests passed\n");
 }
 
 void test_scratch(void) {
-    print_str("## Testing scratch arena...\n");
-    print_str("Creating a new arena for scratch tests...\n");
+    print("## Testing scratch arena...\n");
+    print("Creating a new arena for scratch tests...\n");
     Arena *scratch_test_arena = arena_create(4096);
     if (!scratch_test_arena) {
-        print_str("Error: Failed to create the arena.\n");
+        print("Error: Failed to create the arena.\n");
         platform_exit(1);
     }
 
-    print_str("Test 1: Basic scratch allocation and cleanup\n");
+    print("Test 1: Basic scratch allocation and cleanup\n");
     char *persistent = arena_alloc(scratch_test_arena, 100);
     base_strcpy(persistent, "This persists");
 
@@ -494,61 +494,61 @@ void test_scratch(void) {
         base_strcpy(temp1, "Temporary 1");
         char *temp2 = arena_alloc(scratch.arena, 50);
         base_strcpy(temp2, "Temporary 2");
-        print_str("  Inside scratch: ");
-        print_str(persistent);
-        print_str(", ");
-        print_str(temp1);
-        print_str(", ");
-        print_str(temp2);
-        print_str("\n");
+        print("  Inside scratch: ");
+        print(persistent);
+        print(", ");
+        print(temp1);
+        print(", ");
+        print(temp2);
+        print("\n");
         assert(temp1 != temp2);
         scratch_end(scratch);
     }
 
     char *after_scratch = arena_alloc(scratch_test_arena, 100);
     base_strcpy(after_scratch, "After scratch");
-    print_str("  After scratch end: ");
-    print_str(persistent);
-    print_str(", ");
-    print_str(after_scratch);
-    print_str("\n");
+    print("  After scratch end: ");
+    print(persistent);
+    print(", ");
+    print(after_scratch);
+    print("\n");
 
-    print_str("Test 2: Nested scratch scopes with conflict avoidance\n");
+    print("Test 2: Nested scratch scopes with conflict avoidance\n");
     test_nested_scratch_outer(true);
 
-    print_str("Test 2b: Nested scratch scopes WITHOUT conflict avoidance\n");
+    print("Test 2b: Nested scratch scopes WITHOUT conflict avoidance\n");
     test_nested_scratch_outer(false);
 
-    print_str("Test 3: Multiple sequential scratch scopes\n");
+    print("Test 3: Multiple sequential scratch scopes\n");
     {
         Scratch scratch = scratch_begin();
         char *temp = arena_alloc(scratch.arena, 100);
         base_strcpy(temp, "Iteration 0");
-        print_str("  ");
-        print_str(temp);
-        print_str("\n");
+        print("  ");
+        print(temp);
+        print("\n");
         scratch_end(scratch);
     }
     {
         Scratch scratch = scratch_begin();
         char *temp = arena_alloc(scratch.arena, 100);
         base_strcpy(temp, "Iteration 1");
-        print_str("  ");
-        print_str(temp);
-        print_str("\n");
+        print("  ");
+        print(temp);
+        print("\n");
         scratch_end(scratch);
     }
     {
         Scratch scratch = scratch_begin();
         char *temp = arena_alloc(scratch.arena, 100);
         base_strcpy(temp, "Iteration 2");
-        print_str("  ");
-        print_str(temp);
-        print_str("\n");
+        print("  ");
+        print(temp);
+        print("\n");
         scratch_end(scratch);
     }
 
-    print_str("Test 4: Verify memory reuse after scratch_end\n");
+    print("Test 4: Verify memory reuse after scratch_end\n");
     arena_pos_t before_reuse = arena_get_pos(scratch_test_arena);
     {
         Scratch scratch = scratch_begin();
@@ -557,13 +557,13 @@ void test_scratch(void) {
     }
     arena_pos_t after_reuse = arena_get_pos(scratch_test_arena);
     assert(before_reuse.ptr == after_reuse.ptr);
-    print_str("  Memory position restored correctly\n");
+    print("  Memory position restored correctly\n");
 
-    print_str("Freeing scratch test arena...\n");
+    print("Freeing scratch test arena...\n");
     arena_destroy(scratch_test_arena);
 
     // Test scratch arena expansion
-    print_str("Test 5: Scratch arena expansion\n");
+    print("Test 5: Scratch arena expansion\n");
     {
         Scratch scratch = scratch_begin();
 
@@ -581,7 +581,7 @@ void test_scratch(void) {
         // Now allocate more to force expansion
         char *large1 = arena_alloc(scratch.arena, 1000);
         if (!large1) {
-            print_str("Error: Failed to expand scratch arena.\n");
+            print("Error: Failed to expand scratch arena.\n");
             platform_exit(1);
         }
         large1[0] = 'L';
@@ -602,13 +602,13 @@ void test_scratch(void) {
         // Verify both allocations are valid
         assert(large1[0] == 'L' && large1[1] == '1');
         assert(large2[0] == 'L' && large2[1] == '2');
-        print_str("  Scratch arena expansion verified\n");
+        print("  Scratch arena expansion verified\n");
 
         scratch_end(scratch);
     }
 
     // Test reset of expanded scratch arena
-    print_str("Test 6: Reset of expanded scratch arena\n");
+    print("Test 6: Reset of expanded scratch arena\n");
     {
         Scratch scratch = scratch_begin();
 
@@ -617,9 +617,9 @@ void test_scratch(void) {
         size_t initial_chunks = arena_chunk_count(scratch.arena);
         size_t initial_index = arena_current_chunk_index(scratch.arena);
         assert(initial_index == 0);
-        print_str("  Starting state: ");
-        print_str(initial_chunks == 1 ? "1 chunk" : "2+ chunks");
-        print_str(", at index 0\n");
+        print("  Starting state: ");
+        print(initial_chunks == 1 ? "1 chunk" : "2+ chunks");
+        print(", at index 0\n");
 
         // Allocate enough to move through chunks (if multi-chunk) or expand (if single-chunk)
         // With actual_size optimization, we have ~8KB per chunk, so allocate more to force progression
@@ -630,7 +630,7 @@ void test_scratch(void) {
         // Verify we moved forward in chunks
         size_t current_index = arena_current_chunk_index(scratch.arena);
         assert(current_index > initial_index);
-        print_str("  After allocations: moved to chunk index > 0\n");
+        print("  After allocations: moved to chunk index > 0\n");
 
         // scratch_end should reset back to the initial saved position (chunk 0)
         scratch_end(scratch);
@@ -642,19 +642,19 @@ void test_scratch(void) {
 
         // Back at chunk 0 (chunks still exist but we're at the start)
         assert(arena_current_chunk_index(scratch.arena) == 0);
-        print_str("  After scratch_end: back at chunk index 0\n");
+        print("  After scratch_end: back at chunk index 0\n");
 
         char *new_alloc = arena_alloc(scratch.arena, 100);
         new_alloc[0] = 'R';
         new_alloc[1] = '\0';
         assert(new_alloc[0] == 'R');
-        print_str("  New allocation after reset: verified\n");
+        print("  New allocation after reset: verified\n");
         scratch_end(scratch);
     }
 
-    print_str("  Reset of expanded scratch arena verified - correctly resets to chunk 0\n");
+    print("  Reset of expanded scratch arena verified - correctly resets to chunk 0\n");
 
-    print_str("Scratch arena tests passed\n");
+    print("Scratch arena tests passed\n");
 }
 
 
@@ -684,7 +684,7 @@ void test_format(void) {
     // Example with formatted double
     fmt = str_lit("Value: {:10.5f}");
     result = format(arena, fmt, pi);
-    // Note: Double formatting may have slight differences, so we just print_str it
+    // Note: Double formatting may have slight differences, so we just print it
     println(str_lit("Formatted double: {}"), str_to_cstr_copy(arena, result));
 
     // Example with formatted char
@@ -949,7 +949,7 @@ void test_vector_int_ptr(void) {
 }
 
 void test_string(void) {
-    print_str("## Testing base string functions...\n");
+    print("## Testing base string functions...\n");
     Arena *arena = arena_create(4096);
 
     // Test str_from_cstr_view
@@ -989,12 +989,12 @@ void test_string(void) {
     assert(cstr[11] == '\0');
     assert(base_strlen(cstr) == 11);
 
-    print_str("String function tests passed\n");
+    print("String function tests passed\n");
     arena_destroy(arena);
 }
 
 void test_std_fds(void) {
-    print_str("## Testing standard file descriptors...\n");
+    print("## Testing standard file descriptors...\n");
 
     // Test that PLATFORM_STDOUT_FD works
     const char *msg_stdout = "Testing PLATFORM_STDOUT_FD\n";
@@ -1003,7 +1003,7 @@ void test_std_fds(void) {
     uint32_t ret = platform_fd_write(PLATFORM_STDOUT_FD, &iov_stdout, 1, &nwritten);
     assert(ret == 0);
     assert(nwritten == base_strlen(msg_stdout));
-    print_str("PLATFORM_STDOUT_FD works\n");
+    print("PLATFORM_STDOUT_FD works\n");
 
     // Test that PLATFORM_STDERR_FD works
     const char *msg_stderr = "Testing PLATFORM_STDERR_FD\n";
@@ -1011,7 +1011,7 @@ void test_std_fds(void) {
     ret = platform_fd_write(PLATFORM_STDERR_FD, &iov_stderr, 1, &nwritten);
     assert(ret == 0);
     assert(nwritten == base_strlen(msg_stderr));
-    print_str("PLATFORM_STDERR_FD works\n");
+    print("PLATFORM_STDERR_FD works\n");
 
     // Test that file operations don't interfere with standard streams
     // Open a file and verify the returned FD is not 0, 1, or 2
@@ -1021,7 +1021,7 @@ void test_std_fds(void) {
     assert(fd != PLATFORM_STDIN_FD);
     assert(fd != PLATFORM_STDOUT_FD);
     assert(fd != PLATFORM_STDERR_FD);
-    print_str("File descriptor is not 0, 1, or 2: ");
+    print("File descriptor is not 0, 1, or 2: ");
     Scratch scratch = scratch_begin();
     println(str_lit("{}"), (int)fd);
     scratch_end(scratch);
@@ -1033,7 +1033,7 @@ void test_std_fds(void) {
     assert(ret == 0);
     assert(nwritten == base_strlen(file_content));
     assert(platform_fd_close(fd) == 0);
-    print_str("File write successful\n");
+    print("File write successful\n");
 
     // Verify stdout/stderr still work after file operations
     const char *msg_after = "stdout works after file ops\n";
@@ -1082,13 +1082,13 @@ void test_std_fds(void) {
     assert(platform_fd_close(fd2) == 0);
     assert(platform_fd_close(fd3) == 0);
 
-    print_str("Multiple file opens work correctly\n");
+    print("Multiple file opens work correctly\n");
 
-    print_str("Standard file descriptors tests passed\n");
+    print("Standard file descriptors tests passed\n");
 }
 
 void test_stdin(void) {
-    print_str("## Testing stdin (PLATFORM_STDIN_FD)...\n");
+    print("## Testing stdin (PLATFORM_STDIN_FD)...\n");
 
     char buffer[256];
     iovec_t iov = {.iov_base = buffer, .iov_len = sizeof(buffer) - 1};
@@ -1111,40 +1111,40 @@ void test_stdin(void) {
     size_t expected_len = base_strlen(expected);
 
     // Debug output
-    print_str("Read from stdin (length ");
+    print("Read from stdin (length ");
     Arena *debug_arena = arena_create(1024);
     println(str_lit("{}"), (int)nread);
-    print_str("): '");
-    print_str(buffer);
-    print_str("'\n");
-    print_str("Expected (length ");
+    print("): '");
+    print(buffer);
+    print("'\n");
+    print("Expected (length ");
     println(str_lit("{}"), (int)expected_len);
-    print_str("): '");
-    print_str(expected);
-    print_str("'\n");
+    print("): '");
+    print(expected);
+    print("'\n");
     arena_destroy(debug_arena);
 
     assert(nread == expected_len);
     assert(base_memcmp(buffer, expected, expected_len) == 0);
 
-    print_str("Read from stdin: ");
-    print_str(buffer);
-    print_str("\n");
-    print_str("stdin test passed\n");
+    print("Read from stdin: ");
+    print(buffer);
+    print("\n");
+    print("stdin test passed\n");
 }
 
 void test_args(void) {
-    print_str("## Testing command line arguments...\n");
+    print("## Testing command line arguments...\n");
 
     // Get argument sizes
     size_t argc, argv_buf_size;
     int ret = platform_args_sizes_get(&argc, &argv_buf_size);
     assert(ret == 0);
 
-    print_str("argc=");
+    print("argc=");
     Arena *arena = arena_create(4096);
     println(str_lit("{}"), (int)argc);
-    print_str("argv_buf_size=");
+    print("argv_buf_size=");
     println(str_lit("{}"), (int)argv_buf_size);
 
     // Allocate buffers
@@ -1158,15 +1158,15 @@ void test_args(void) {
     assert(ret == 0);
 
     // Print all arguments
-    print_str("Arguments:\n");
+    print("Arguments:\n");
     for (size_t i = 0; i < argc; i++) {
         Scratch scratch = scratch_begin();
         string idx_str = int_to_string(scratch.arena, (int)i);
-        print_str("  argv[");
-        print_str(str_to_cstr_copy(scratch.arena, idx_str));
-        print_str("] = \"");
-        print_str(argv[i]);
-        print_str("\"\n");
+        print("  argv[");
+        print(str_to_cstr_copy(scratch.arena, idx_str));
+        print("] = \"");
+        print(argv[i]);
+        print("\"\n");
         scratch_end(scratch);
     }
 
@@ -1204,7 +1204,7 @@ void test_args(void) {
             }
         }
         assert(arg_idx == argc);
-        print_str("Verified argv against expected_args.txt: ");
+        print("Verified argv against expected_args.txt: ");
         println(str_lit("{} args"), (int)(argc - 1));
     }
     arena_destroy(expected_arena);
@@ -1214,7 +1214,7 @@ void test_args(void) {
     buddy_free(argv_buf);
     arena_destroy(arena);
 
-    print_str("Command line arguments tests passed\n");
+    print("Command line arguments tests passed\n");
 }
 
 int check_test_input_flag(void) {
@@ -1246,7 +1246,7 @@ int check_test_input_flag(void) {
 }
 
 void test_base(void) {
-    print_str("=== base tests ===\n");
+    print("=== base tests ===\n");
 
     test_platform_heap();
     test_math();
@@ -1265,5 +1265,5 @@ void test_base(void) {
     test_std_fds();
     test_args();
 
-    print_str("base tests passed\n\n");
+    print("base tests passed\n\n");
 }
