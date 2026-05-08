@@ -56,5 +56,5 @@ for src in "${SOURCES[@]}"; do
 done
 
 echo "[link    ] $OUT"
-clang -nostdlib -fno-builtin -o "$OUT" "${LL_FILES[@]}" -lSystem -Wl,-e,__start
+clang -nostdlib -fno-builtin -o "$OUT" "${LL_FILES[@]}" ../mlir/examples/tinyc/runtime.c -lSystem -Wl,-e,__start
 echo "Built $OUT"
