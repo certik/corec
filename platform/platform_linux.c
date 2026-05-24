@@ -480,12 +480,19 @@ static int platform_init_and_run(int argc, char** argv, char** envp) {
 //   ...
 //                    NULL (terminator of envp)
 //                    auxv...
+//
+// Unlike macOS, the Linux kernel does not pre-populate registers with
+// argc/argv/envp — everything lives on the stack. We marshal the three
+// arguments into the SysV AMD64 calling-convention registers (rdi, rsi,
+// rdx) here so that `_start_c` looks like a regular C function with the
+// same `(argc, argv, envp)` signature used on macOS.
 __attribute__((naked))
 void _start() {
     __asm__ volatile (
         "xor %rbp, %rbp\n"           // Clear frame pointer as per ABI
-        "mov (%rsp), %rdi\n"         // argc from stack to first argument (rdi)
-        "lea 8(%rsp), %rsi\n"        // argv from stack+8 to second argument (rsi)
+        "mov (%rsp), %rdi\n"         // rdi = argc
+        "lea 8(%rsp), %rsi\n"        // rsi = argv (address of argv[0])
+        "lea 8(%rsi,%rdi,8), %rdx\n" // rdx = envp = &argv[argc + 1] (skip argv NULL terminator)
         "andq $-16, %rsp\n"          // Align stack to 16 bytes
         "call _start_c\n"            // Call the C portion
         "mov %eax, %edi\n"           // Move return value to exit code
@@ -495,11 +502,9 @@ void _start() {
     );
 }
 
-// The actual C entry point. `envp` lives on the stack right after argv's
-// NULL terminator: `envp == &argv[argc + 1]` (argv has `argc` entries plus
-// the trailing NULL).
-int _start_c(int argc, char** argv) {
-    char** envp = argv + argc + 1;
+// The actual C entry point. Receives argc/argv/envp loaded from the stack
+// by the naked `_start` above.
+int _start_c(int argc, char** argv, char** envp) {
     return platform_init_and_run(argc, argv, envp);
 }
 #endif
