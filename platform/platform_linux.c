@@ -82,6 +82,12 @@ static const size_t RESERVED_SIZE = 1ULL << 32; // Reserve 4GB of virtual addres
 static int stored_argc = 0;
 static char** stored_argv = NULL;
 
+// Environment variables storage. `stored_envp` points to a NULL-terminated
+// array of "KEY=VALUE" UTF-8 strings; `stored_environ_count` is the number
+// of entries (excluding the terminating NULL).
+static char** stored_envp = NULL;
+static size_t stored_environ_count = 0;
+
 typedef struct {
     void* addr;
     size_t size;
@@ -205,9 +211,14 @@ float fast_sqrtf(float x) {
 // Public initialization function for hosts that provide their own entry
 // point (PLATFORM_SKIP_ENTRY); the default _start path below calls this
 // itself.
-void platform_init(int argc, char** argv) {
+void platform_init(int argc, char** argv, char** envp) {
     stored_argc = argc;
     stored_argv = argv;
+    stored_envp = envp;
+    stored_environ_count = 0;
+    if (envp) {
+        while (envp[stored_environ_count]) stored_environ_count++;
+    }
     ensure_heap_initialized();
     buddy_init();
 }
@@ -417,13 +428,40 @@ int platform_args_get(char** argv, char* argv_buf) {
     return 0;
 }
 
+// Environment variables implementation
+int platform_environ_sizes_get(size_t* environ_count, size_t* environ_buf_size) {
+    *environ_count = stored_environ_count;
+
+    size_t total_size = 0;
+    for (size_t i = 0; i < stored_environ_count; i++) {
+        const char* e = stored_envp[i];
+        while (*e++) total_size++;
+        total_size++;
+    }
+    *environ_buf_size = total_size;
+    return 0;
+}
+
+int platform_environ_get(char** environ, char* environ_buf) {
+    char* buf_ptr = environ_buf;
+    for (size_t i = 0; i < stored_environ_count; i++) {
+        environ[i] = buf_ptr;
+        const char* src = stored_envp[i];
+        while (*src) {
+            *buf_ptr++ = *src++;
+        }
+        *buf_ptr++ = '\0';
+    }
+    return 0;
+}
+
 #ifndef PLATFORM_SKIP_ENTRY
 // Forward declaration for application entry point (only when platform provides entry)
 int app_main();
 
 // Initialize the platform and call the application
-static int platform_init_and_run(int argc, char** argv) {
-    platform_init(argc, argv);
+static int platform_init_and_run(int argc, char** argv, char** envp) {
+    platform_init(argc, argv, envp);
     int status = app_main();
     return status;
 }
@@ -437,6 +475,11 @@ static int platform_init_and_run(int argc, char** argv) {
 //   rsp+8: argv[0]
 //   rsp+16: argv[1]
 //   ...
+//   rsp+8+argc*8:    NULL (terminator of argv)
+//   rsp+16+argc*8:   envp[0]
+//   ...
+//                    NULL (terminator of envp)
+//                    auxv...
 __attribute__((naked))
 void _start() {
     __asm__ volatile (
@@ -452,8 +495,11 @@ void _start() {
     );
 }
 
-// The actual C entry point
+// The actual C entry point. `envp` lives on the stack right after argv's
+// NULL terminator: `envp == &argv[argc + 1]` (argv has `argc` entries plus
+// the trailing NULL).
 int _start_c(int argc, char** argv) {
-    return platform_init_and_run(argc, argv);
+    char** envp = argv + argc + 1;
+    return platform_init_and_run(argc, argv, envp);
 }
 #endif

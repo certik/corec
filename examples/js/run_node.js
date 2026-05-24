@@ -19,6 +19,10 @@ if (!wasmPath) {
 
 const argv = [basename(wasmPath), ...process.argv.slice(3)];
 
+// Pass the host's environment through to the wasm guest as "KEY=VALUE"
+// strings, matching the WASI environ_* shape.
+const environ = Object.entries(process.env).map(([k, v]) => `${k}=${v}`);
+
 let stdinBuf = new Uint8Array();
 try {
     if (!process.stdin.isTTY) stdinBuf = new Uint8Array(readFileSync(0));
@@ -36,6 +40,7 @@ const PLATFORM_O_TRUNC = 0x8;
 
 const io = {
     argv,
+    environ,
     stdin:  { read(max) {
         const slice = stdinBuf.subarray(stdinPos, stdinPos + max);
         stdinPos += slice.length;

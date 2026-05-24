@@ -164,18 +164,41 @@ int platform_args_sizes_get(size_t* argc, size_t* argv_buf_size);
 int platform_args_get(char** argv, char* argv_buf);
 
 
+// Environment Variables
+//
+// Get the sizes of the environment variables. Each environment variable is a
+// UTF-8 "KEY=VALUE" string terminated by a NUL byte.
+// Returns 0 on success with:
+//   *environ_count: number of environment variables
+//   *environ_buf_size: total size needed to store all environment strings
+//                      (including null terminators)
+// Returns errno on error.
+int platform_environ_sizes_get(size_t* environ_count, size_t* environ_buf_size);
+
+// Get the environment variables.
+// Parameters:
+//   environ: array of pointers to be filled with "KEY=VALUE" string pointers
+//   environ_buf: buffer to store the actual environment strings
+// The caller must allocate:
+//   - environ array of at least environ_count pointers
+//   - environ_buf buffer of at least environ_buf_size bytes
+// Returns 0 on success, or errno on error.
+int platform_environ_get(char** environ, char* environ_buf);
+
+
 //=============================================================================
 // Platform Initialization
 //=============================================================================
 //
-// Initialize the platform runtime (heap, buddy allocator, command line args).
+// Initialize the platform runtime (heap, buddy allocator, command line args,
+// environment variables).
 //
 // USAGE PATTERNS:
 //
 // 1. When PLATFORM_SKIP_ENTRY is DEFINED (platform skips entry point):
 //    - The platform does NOT provide _start or any entry point implementation
 //    - You MUST provide your own entry point (main, SDL_main, etc.)
-//    - You MUST call platform_init(argc, argv) manually in your entry point
+//    - You MUST call platform_init(argc, argv, envp) manually in your entry point
 //    - Do NOT implement app_main()
 //    - Example: SDL apps call this in SDL_AppInit()
 //
@@ -187,8 +210,12 @@ int platform_args_get(char** argv, char* argv_buf);
 // Parameters:
 //   argc: argument count (may be 0 for platforms without argc/argv)
 //   argv: argument vector (may be NULL for platforms without argc/argv)
+//   envp: environment vector, NULL-terminated array of "KEY=VALUE" strings
+//         (may be NULL for platforms that source the environment through
+//          their host API rather than through the entry point, e.g. Windows
+//          and WebAssembly/WASI)
 //
-void platform_init(int argc, char** argv);
+void platform_init(int argc, char** argv, char** envp);
 
 
 // Math Functions

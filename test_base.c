@@ -1217,6 +1217,84 @@ void test_args(void) {
     print("Command line arguments tests passed\n");
 }
 
+void test_env(void) {
+    print("## Testing environment variables...\n");
+
+    // Get environment sizes
+    size_t environ_count, environ_buf_size;
+    int ret = platform_environ_sizes_get(&environ_count, &environ_buf_size);
+    assert(ret == 0);
+
+    print("environ_count=");
+    println(str_lit("{}"), (int)environ_count);
+    print("environ_buf_size=");
+    println(str_lit("{}"), (int)environ_buf_size);
+
+    // Allocate buffers
+    char** environ = NULL;
+    char* environ_buf = NULL;
+    if (environ_count > 0) {
+        environ = (char**)buddy_alloc(environ_count * sizeof(char*), NULL);
+        environ_buf = (char*)buddy_alloc(environ_buf_size, NULL);
+        assert(environ != NULL);
+        assert(environ_buf != NULL);
+
+        ret = platform_environ_get(environ, environ_buf);
+        assert(ret == 0);
+    }
+
+    // Print all environment entries and validate each contains an '='.
+    print("Environment:\n");
+    for (size_t i = 0; i < environ_count; i++) {
+        Scratch scratch = scratch_begin();
+        string idx_str = int_to_string(scratch.arena, (int)i);
+        print("  environ[");
+        print(str_to_cstr_copy(scratch.arena, idx_str));
+        print("] = \"");
+        print(environ[i]);
+        print("\"\n");
+        scratch_end(scratch);
+
+        // Every entry must be a well-formed KEY=VALUE string.
+        bool has_eq = false;
+        const char* p = environ[i];
+        while (*p) {
+            if (*p == '=') { has_eq = true; break; }
+            p++;
+        }
+        assert(has_eq);
+    }
+
+    // The CI test harness sets COREC_TEST_ENV=corec_test_value before running
+    // every backend (native, wasmtime, Node, browser). Verify it's present.
+    // This is a side-channel check: the assertion is driven from the OS-level
+    // environment (or wasmtime's --env / the host's process.env), so it
+    // catches platform layers that silently drop or reorder envp.
+    const char* needle = "COREC_TEST_ENV=corec_test_value";
+    size_t needle_len = base_strlen(needle);
+    bool found = false;
+    for (size_t i = 0; i < environ_count; i++) {
+        if (base_strlen(environ[i]) == needle_len) {
+            bool match = true;
+            for (size_t k = 0; k < needle_len; k++) {
+                if (environ[i][k] != needle[k]) { match = false; break; }
+            }
+            if (match) { found = true; break; }
+        }
+    }
+    if (found) {
+        print("Verified COREC_TEST_ENV=corec_test_value is present\n");
+    } else {
+        print("COREC_TEST_ENV=corec_test_value not found (set it in CI or your shell)\n");
+        assert(found);
+    }
+
+    if (environ) buddy_free(environ);
+    if (environ_buf) buddy_free(environ_buf);
+
+    print("Environment variables tests passed\n");
+}
+
 int check_test_input_flag(void) {
     // Get command line arguments to check for --test-input flag
     size_t argc, argv_buf_size;
@@ -1264,6 +1342,7 @@ void test_base(void) {
     test_string();
     test_std_fds();
     test_args();
+    test_env();
 
     print("base tests passed\n\n");
 }

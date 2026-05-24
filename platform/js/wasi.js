@@ -6,13 +6,14 @@
 // `wasi_snapshot_preview1` imports listed below. Those imports are not
 // defined inside the `.wasm` — whoever loads the module must supply them.
 // `wasmtime` is one such runtime (in Rust, talks to the host OS). This
-// file is another: a pure-JS implementation of the same nine imports, so
+// file is another: a pure-JS implementation of the same eleven imports, so
 // the same `corec_test.wasm` artifact can run unmodified in Node.js and
 // in any modern browser.
 //
 // Imports implemented (matching platform/platform_wasm.c):
 //
 //   args_sizes_get, args_get,
+//   environ_sizes_get, environ_get,
 //   fd_write, fd_read, fd_close, fd_seek, fd_tell,
 //   path_open,
 //   proc_exit
@@ -31,7 +32,7 @@
 //   * Real I/O. There is no DOM, no `node:fs`, no network. The host
 //     supplies all that through `io` (see makeWasi below).
 //
-// Usage: a host builds an `io = { argv, stdin, stdout, stderr, fs }`
+// Usage: a host builds an `io = { argv, environ, stdin, stdout, stderr, fs }`
 // object, then:
 //
 //     const wasi = makeWasi(io);
@@ -80,6 +81,7 @@ const WHENCE_END = 2;
 // Build the imports object for a given host IO implementation.
 //
 //   io.argv    : string[]
+//   io.environ : string[]    // each entry is "KEY=VALUE"
 //   io.stdin   : { read(maxBytes) -> Uint8Array }   // empty = EOF
 //   io.stdout  : { write(bytes:Uint8Array) }
 //   io.stderr  : { write(bytes:Uint8Array) }
@@ -120,6 +122,28 @@ export function makeWasi(io) {
             for (let i = 0; i < io.argv.length; i++) {
                 writeU32(argv_ptr + i * 4, p);
                 const bytes = ENCODER.encode(io.argv[i]);
+                writeBytes(p, bytes);
+                u8()[p + bytes.length] = 0;
+                p += bytes.length + 1;
+            }
+            return ERRNO.SUCCESS;
+        },
+
+        environ_sizes_get(environ_count_ptr, environ_buf_size_ptr) {
+            const env = io.environ || [];
+            let bufSize = 0;
+            for (const e of env) bufSize += ENCODER.encode(e).length + 1;
+            writeU32(environ_count_ptr, env.length);
+            writeU32(environ_buf_size_ptr, bufSize);
+            return ERRNO.SUCCESS;
+        },
+
+        environ_get(environ_ptr, environ_buf_ptr) {
+            const env = io.environ || [];
+            let p = environ_buf_ptr;
+            for (let i = 0; i < env.length; i++) {
+                writeU32(environ_ptr + i * 4, p);
+                const bytes = ENCODER.encode(env[i]);
                 writeBytes(p, bytes);
                 u8()[p + bytes.length] = 0;
                 p += bytes.length + 1;

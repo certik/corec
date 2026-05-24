@@ -51,6 +51,12 @@ static const size_t RESERVED_SIZE = 1ULL << 32; // 4GB virtual space
 static int stored_argc = 0;
 static char** stored_argv = NULL;
 
+// Environment variables storage. `stored_envp` points to a NULL-terminated
+// array of "KEY=VALUE" UTF-8 strings; `stored_environ_count` is the number
+// of entries (excluding the terminating NULL).
+static char** stored_envp = NULL;
+static size_t stored_environ_count = 0;
+
 typedef struct {
     void* addr;
     size_t size;
@@ -143,9 +149,14 @@ float fast_sqrtf(float x) {
 // Public initialization function for hosts that provide their own entry
 // point (PLATFORM_SKIP_ENTRY); the default _start path below calls this
 // itself.
-void platform_init(int argc, char** argv) {
+void platform_init(int argc, char** argv, char** envp) {
     stored_argc = argc;
     stored_argv = argv;
+    stored_envp = envp;
+    stored_environ_count = 0;
+    if (envp) {
+        while (envp[stored_environ_count]) stored_environ_count++;
+    }
     ensure_heap_initialized();
     buddy_init();
 }
@@ -273,6 +284,33 @@ int platform_args_get(char** argv, char* argv_buf) {
     return 0;
 }
 
+// Environment variables implementation
+int platform_environ_sizes_get(size_t* environ_count, size_t* environ_buf_size) {
+    *environ_count = stored_environ_count;
+
+    size_t total_size = 0;
+    for (size_t i = 0; i < stored_environ_count; i++) {
+        const char* e = stored_envp[i];
+        while (*e++) total_size++;
+        total_size++;
+    }
+    *environ_buf_size = total_size;
+    return 0;
+}
+
+int platform_environ_get(char** environ, char* environ_buf) {
+    char* buf_ptr = environ_buf;
+    for (size_t i = 0; i < stored_environ_count; i++) {
+        environ[i] = buf_ptr;
+        const char* src = stored_envp[i];
+        while (*src) {
+            *buf_ptr++ = *src++;
+        }
+        *buf_ptr++ = '\0';
+    }
+    return 0;
+}
+
 bool platform_read_file_mmap(const char *filename, uint64_t *out_handle, void **out_data, size_t *out_size) {
     if (!filename || !out_handle || !out_data || !out_size) return false;
     *out_handle = 0;
@@ -349,16 +387,18 @@ void platform_file_unmap(uint64_t handle) {
 int app_main();
 
 // Initialize the platform and call the application
-static int platform_init_and_run(int argc, char** argv) {
-    platform_init(argc, argv);
+static int platform_init_and_run(int argc, char** argv, char** envp) {
+    platform_init(argc, argv, envp);
     int status = app_main();
     return status;
 }
 
 // Entry point for macOS.
-// macOS passes argc and argv to the entry point (unlike raw Linux)
-void _start(int argc, char** argv) {
-    int status = platform_init_and_run(argc, argv);
+// macOS passes argc, argv, and envp to the entry point. The full ABI is
+// `start(int argc, char** argv, char** envp, char** apple)`; we only need
+// the first three.
+void _start(int argc, char** argv, char** envp) {
+    int status = platform_init_and_run(argc, argv, envp);
     platform_exit(status);
 }
 #endif
