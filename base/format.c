@@ -3,6 +3,7 @@
 #include <base/mem.h>
 #include <base/format.h>
 #include <base/scratch.h>
+#include <base/strbuf.h>
 #include <base/exit.h>
 #include <base/io.h>
 
@@ -50,7 +51,7 @@ FormatSpec parse_format_spec(string spec) {
 string format_explicit_varg(Arena *arena, string fmt, size_t arg_count,
         va_list ap) {
     Scratch scratch = scratch_begin_avoid_conflict(arena);
-    string result = str_lit("");
+    strbuf result = strbuf_make_cap(scratch.arena, fmt.size + 16);
     const char *p = fmt.str;
     const char *end = fmt.str + fmt.size;
     size_t arg_index = 0;
@@ -58,29 +59,27 @@ string format_explicit_varg(Arena *arena, string fmt, size_t arg_count,
         const char *open_brace = base_memchr(p, '{', end - p);
         if (open_brace == NULL) {
             string remaining = {.str = (char*)p, .size = end - p};
-            result = str_concat(scratch.arena, result, remaining);
+            strbuf_append(scratch.arena, &result, remaining);
             break;
         }
         if (open_brace > p) {
             string part = {.str = (char*)p, .size = open_brace - p};
-            result = str_concat(scratch.arena, result, part);
+            strbuf_append(scratch.arena, &result, part);
         }
         p = open_brace + 1;
         if (p >= end) {
-            string lit = {.str = (char*)open_brace, .size = 1};
-            result = str_concat(scratch.arena, result, lit);
+            strbuf_append_char(scratch.arena, &result, '{');
             break;
         }
         if (*p == '{') {
-            string brace = {.str = (char*)open_brace, .size = 1};
-            result = str_concat(scratch.arena, result, brace);
+            strbuf_append_char(scratch.arena, &result, '{');
             p++;
             continue;
         }
         const char *close_brace = base_memchr(p, '}', end - p);
         if (close_brace == NULL) {
             string error = str_from_cstr_view("Error: missing closing brace");
-            result = str_concat(scratch.arena, result, error);
+            strbuf_append(scratch.arena, &result, error);
             break;
         }
         const char *colon = base_memchr(p, ':', close_brace - p);
@@ -91,7 +90,7 @@ string format_explicit_varg(Arena *arena, string fmt, size_t arg_count,
         } else {
             if (p != close_brace) {
                 string error = str_from_cstr_view("Error: invalid format specifier");
-                result = str_concat(scratch.arena, result, error);
+                strbuf_append(scratch.arena, &result, error);
                 p = close_brace + 1;
                 continue;
             }
@@ -181,15 +180,17 @@ string format_explicit_varg(Arena *arena, string fmt, size_t arg_count,
 #else
                 vector_i64 value = va_arg(ap, vector_i64);
 #endif
-                s = str_lit("{");
+                strbuf vec_buf = strbuf_make_cap(scratch.arena, 32);
+                strbuf_append_char(scratch.arena, &vec_buf, '{');
                 for (int i=0; i<value.size; i++) {
-                    s = str_concat(scratch.arena, s,
+                    strbuf_append(scratch.arena, &vec_buf,
                             int_to_string(scratch.arena, value.data[i]));
                     if (i < value.size-1) {
-                        s = str_concat(scratch.arena, s, str_lit(", "));
+                        strbuf_append(scratch.arena, &vec_buf, str_lit(", "));
                     }
                 }
-                s = str_concat(scratch.arena, s, str_lit("}"));
+                strbuf_append_char(scratch.arena, &vec_buf, '}');
+                s = strbuf_to_string(vec_buf);
                 if (spec.precision >= 0 && spec.precision < s.size) {
                     s.size = spec.precision;
                 }
@@ -215,22 +216,30 @@ string format_explicit_varg(Arena *arena, string fmt, size_t arg_count,
         if (spec.width > 0 && s.size < spec.width) {
             size_t pad_size = spec.width - s.size;
             char pad_char = ' ';
-            string padding = {.str = arena_new_array(scratch.arena, char, pad_size), .size = pad_size};
-            base_memset(padding.str, pad_char, pad_size);
             if (spec.alignment == '<') {
-                s = str_concat(scratch.arena, s, padding);
+                strbuf_append(scratch.arena, &result, s);
+                for (size_t k = 0; k < pad_size; k++) {
+                    strbuf_append_char(scratch.arena, &result, pad_char);
+                }
             } else if (spec.alignment == '^') {
                 size_t left_pad = pad_size / 2;
                 size_t right_pad = pad_size - left_pad;
-                string left = {.str = padding.str, .size = left_pad};
-                string right = {.str = padding.str + left_pad, .size = right_pad};
-                s = str_concat(scratch.arena, left, s);
-                s = str_concat(scratch.arena, s, right);
+                for (size_t k = 0; k < left_pad; k++) {
+                    strbuf_append_char(scratch.arena, &result, pad_char);
+                }
+                strbuf_append(scratch.arena, &result, s);
+                for (size_t k = 0; k < right_pad; k++) {
+                    strbuf_append_char(scratch.arena, &result, pad_char);
+                }
             } else {  // '>' or default
-                s = str_concat(scratch.arena, padding, s);
+                for (size_t k = 0; k < pad_size; k++) {
+                    strbuf_append_char(scratch.arena, &result, pad_char);
+                }
+                strbuf_append(scratch.arena, &result, s);
             }
+        } else {
+            strbuf_append(scratch.arena, &result, s);
         }
-        result = str_concat(scratch.arena, result, s);
         p = close_brace + 1;
     }
     if (arg_index != arg_count) {
@@ -238,7 +247,7 @@ string format_explicit_varg(Arena *arena, string fmt, size_t arg_count,
     }
 
     // Copy final result to the supplied arena
-    string final_result = str_copy(arena, result);
+    string final_result = str_copy(arena, strbuf_to_string(result));
     scratch_end(scratch);
     return final_result;
 }
