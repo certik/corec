@@ -63,6 +63,8 @@ __declspec(dllimport) int __stdcall SetFilePointerEx(HANDLE hFile, LARGE_INTEGER
 __declspec(dllimport) wchar_t* __stdcall GetCommandLineW(void);
 __declspec(dllimport) wchar_t** __stdcall CommandLineToArgvW(const wchar_t* lpCmdLine, int* pNumArgs);
 __declspec(dllimport) HANDLE __stdcall LocalFree(HANDLE hMem);
+__declspec(dllimport) wchar_t* __stdcall GetEnvironmentStringsW(void);
+__declspec(dllimport) int __stdcall FreeEnvironmentStringsW(wchar_t* penv);
 __declspec(dllimport) HANDLE __stdcall CreateFileMappingA(HANDLE hFile, void* lpFileMappingAttributes, DWORD flProtect, DWORD dwMaximumSizeHigh, DWORD dwMaximumSizeLow, const char* lpName);
 __declspec(dllimport) LPVOID __stdcall MapViewOfFile(HANDLE hFileMappingObject, DWORD dwDesiredAccess, DWORD dwFileOffsetHigh, DWORD dwFileOffsetLow, size_t dwNumberOfBytesToMap);
 __declspec(dllimport) int __stdcall UnmapViewOfFile(LPCVOID lpBaseAddress);
@@ -78,6 +80,13 @@ static const size_t RESERVED_SIZE = 1ULL << 32; // Reserve 4GB of virtual addres
 static int stored_argc = 0;
 static char** stored_argv = NULL;
 static char* stored_argv_buf = NULL;
+
+// Environment variables storage (UTF-8 converted). `stored_environ` is a
+// table of `stored_environ_count` pointers into `stored_environ_buf`, each
+// pointing to a "KEY=VALUE" UTF-8 string terminated by a NUL.
+static size_t stored_environ_count = 0;
+static char** stored_environ = NULL;
+static char* stored_environ_buf = NULL;
 
 typedef struct {
     void   *view;
@@ -205,6 +214,7 @@ void platform_exit(int status) {
 
 // Forward declaration for command line argument initialization
 static void init_args();
+static void init_environ();
 
 // Math functions using compiler builtins
 double fast_sqrt(double x) {
@@ -248,8 +258,10 @@ float fast_sqrtf(float x) {
 // Public initialization function for hosts that provide their own entry
 // point (PLATFORM_SKIP_ENTRY); the default _start path below calls this
 // itself.
-void platform_init(int argc, char** argv) {
+void platform_init(int argc, char** argv, char** envp) {
+    (void)argc; (void)argv; (void)envp;
     init_args();
+    init_environ();
     ensure_heap_initialized();
     buddy_init();
 }
@@ -513,6 +525,93 @@ int platform_args_get(char** argv, char* argv_buf) {
     return 0;
 }
 
+// Initialize environment variables from Windows API. GetEnvironmentStringsW
+// returns a pointer to a block of "KEY=VALUE\0KEY=VALUE\0...\0" UTF-16
+// strings, terminated by an extra NUL (double-NUL termination).
+static void init_environ() {
+    if (stored_environ != NULL) return;  // Already initialized
+
+    wchar_t* env_block = GetEnvironmentStringsW();
+    if (env_block == NULL) {
+        stored_environ_count = 0;
+        return;
+    }
+
+    // First pass: count entries and worst-case UTF-8 byte count.
+    size_t count = 0;
+    size_t total_size = 0;
+    wchar_t* p = env_block;
+    while (*p) {
+        size_t wlen = wcslen(p);
+        // Worst case: each wide char becomes 3 UTF-8 bytes (BMP only).
+        total_size += wlen * 3 + 1;
+        count++;
+        p += wlen + 1;
+    }
+
+    if (count == 0) {
+        FreeEnvironmentStringsW(env_block);
+        stored_environ_count = 0;
+        return;
+    }
+
+    // Allocate storage using VirtualAlloc (same pattern as init_args).
+    stored_environ = (char**)VirtualAlloc(NULL, count * sizeof(char*), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    stored_environ_buf = (char*)VirtualAlloc(NULL, total_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+
+    if (!stored_environ || !stored_environ_buf) {
+        FreeEnvironmentStringsW(env_block);
+        stored_environ_count = 0;
+        stored_environ = NULL;
+        return;
+    }
+
+    // Second pass: convert each entry to UTF-8.
+    char* buf_ptr = stored_environ_buf;
+    p = env_block;
+    for (size_t i = 0; i < count; i++) {
+        stored_environ[i] = buf_ptr;
+        size_t remaining = total_size - (size_t)(buf_ptr - stored_environ_buf);
+        size_t bytes = widestr_to_utf8(p, buf_ptr, remaining);
+        buf_ptr += bytes + 1;  // +1 for null terminator
+        p += wcslen(p) + 1;
+    }
+
+    stored_environ_count = count;
+    FreeEnvironmentStringsW(env_block);
+}
+
+// Environment variables implementation
+int platform_environ_sizes_get(size_t* environ_count, size_t* environ_buf_size) {
+    init_environ();
+
+    *environ_count = stored_environ_count;
+
+    size_t total_size = 0;
+    for (size_t i = 0; i < stored_environ_count; i++) {
+        const char* e = stored_environ[i];
+        while (*e++) total_size++;
+        total_size++;
+    }
+    *environ_buf_size = total_size;
+    return 0;
+}
+
+int platform_environ_get(char** environ, char* environ_buf) {
+    init_environ();
+
+    char* buf_ptr = environ_buf;
+    for (size_t i = 0; i < stored_environ_count; i++) {
+        environ[i] = buf_ptr;
+        const char* src = stored_environ[i];
+        while (*src) {
+            *buf_ptr++ = *src++;
+        }
+        *buf_ptr++ = '\0';
+    }
+    return 0;
+}
+
 bool platform_read_file_mmap(const char *filename, uint64_t *out_handle, void **out_data, size_t *out_size) {
     if (!filename || !out_handle || !out_data || !out_size) return false;
     *out_handle = 0;
@@ -626,7 +725,7 @@ int app_main();
 
 // Initialize the platform and call the application
 static int platform_init_and_run() {
-    platform_init(0, NULL);
+    platform_init(0, NULL, NULL);
     int status = app_main();
     return status;
 }

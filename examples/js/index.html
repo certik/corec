@@ -40,6 +40,11 @@
     <input id="argv" type="text" value="a1 b2 c3">
 </div>
 <div class="row">
+    <label for="environ">Environment variables (one
+    <code>KEY=VALUE</code> per line):</label>
+    <textarea id="environ" placeholder="(blank = no env)">COREC_TEST_ENV=corec_test_value</textarea>
+</div>
+<div class="row">
     <label for="stdin">Standard input (use <code>--test-input</code> in
     args to make the program consume it):</label>
     <textarea id="stdin" placeholder="(blank = no stdin)"></textarea>
@@ -94,6 +99,9 @@ $("run").addEventListener("click", async () => {
         ? $("argv").value.trim().split(/\s+/) : [];
     const argv = [wasmUrl.split("/").pop(), ...userArgs];
 
+    const environ = $("environ").value.split(/\r?\n/)
+        .map(s => s.trim()).filter(Boolean);
+
     const stdinBytes = new TextEncoder().encode($("stdin").value);
     let stdinPos = 0;
 
@@ -114,6 +122,7 @@ $("run").addEventListener("click", async () => {
     const fs = makeMemoryFS(initial);
     const io = {
         argv,
+        environ,
         stdin: { read(max) {
             const slice = stdinBytes.subarray(stdinPos, stdinPos + max);
             stdinPos += slice.length;

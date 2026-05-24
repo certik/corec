@@ -13,11 +13,12 @@
 //     fd_write, fd_read, fd_close, fd_seek, fd_tell,
 //     path_open,
 //     args_sizes_get, args_get,
+//     environ_sizes_get, environ_get,
 //     proc_exit
 //
 // "Imports" here is the WASM term: these symbols are not defined in the
 // `.wasm` module. The runtime that loads the module must supply them.
-// We use exactly nine of them; everything else (including memory) is
+// We use exactly eleven of them; everything else (including memory) is
 // intrinsic via __builtin_wasm_memory_size / __builtin_wasm_memory_grow.
 //
 // What runs the produced .wasm?
@@ -28,7 +29,7 @@
 //   * Any modern browser, via examples/js/index.html.
 //
 // The two JS hosts share platform/js/wasi.js, which is the JavaScript
-// counterpart of *this* file — it implements the same nine WASI imports
+// counterpart of *this* file — it implements the same eleven WASI imports
 // in pure JS and exposes a host-friendly API that run_node.js and
 // index.html plug into. See platform/js/wasi.js for details.
 // =============================================================================
@@ -48,6 +49,8 @@ int WASI(fd_seek)(int fd, int64_t offset, int whence, uint64_t* newoffset);
 int WASI(fd_tell)(int fd, uint64_t* offset);
 int WASI(args_sizes_get)(size_t* argc, size_t* argv_buf_size);
 int WASI(args_get)(char** argv, char* argv_buf);
+int WASI(environ_sizes_get)(size_t* environ_count, size_t* environ_buf_size);
+int WASI(environ_get)(char** environ, char* environ_buf);
 
 #undef WASI
 
@@ -151,6 +154,15 @@ int platform_args_get(char** argv, char* argv_buf) {
     return args_get(argv, argv_buf);
 }
 
+// Environment variables implementation
+int platform_environ_sizes_get(size_t* environ_count, size_t* environ_buf_size) {
+    return environ_sizes_get(environ_count, environ_buf_size);
+}
+
+int platform_environ_get(char** environ, char* environ_buf) {
+    return environ_get(environ, environ_buf);
+}
+
 void ensure_heap_initialized() {
 }
 
@@ -193,7 +205,8 @@ void wasm_buddy_free(void *ptr) {
 // Public initialization function for hosts that provide their own entry
 // point (PLATFORM_SKIP_ENTRY); the default _start path below calls this
 // itself.
-void platform_init(int argc, char** argv) {
+void platform_init(int argc, char** argv, char** envp) {
+    (void)argc; (void)argv; (void)envp;
     buddy_init();
 }
 
@@ -203,7 +216,9 @@ int app_main();
 
 // Initialize the platform and call the application
 static void platform_init_and_run() {
-    platform_init(0, NULL);  // WASM doesn't receive argc/argv in _start
+    // WASM doesn't receive argc/argv/envp in _start; the WASI runtime
+    // provides them through the args_* / environ_* imports instead.
+    platform_init(0, NULL, NULL);
     int status = app_main();
     platform_exit(status);
 }
