@@ -51,32 +51,6 @@ Arena *arena_create(size_t initial_size);
 void *arena_alloc(Arena *arena, size_t size);
 
 /**
- * @brief Tries to grow the most recent allocation in place.
- *
- * If `ptr` is the last allocation returned by `arena_alloc` (and the arena
- * has not been used since) and the current chunk has enough remaining
- * space, this extends that allocation so the caller may safely use bytes
- * up to `ptr + prev_size + add_bytes`. Returns true on success.
- *
- * Returns false if `ptr` is not the last allocation, or if the current
- * chunk lacks enough space to grow into. The caller can then fall back to
- * a fresh allocation + copy.
- *
- * This lets repeated string-concat-style operations achieve amortized
- * O(1) cost per append: the alignment slack of the previous allocation
- * absorbs small grows for free, and larger grows extend the chunk's bump
- * pointer rather than reallocating + copying every time.
- *
- * @param arena     Arena that produced `ptr`.
- * @param ptr       Pointer previously returned by arena_alloc.
- * @param prev_size Size (in bytes) that was originally requested for `ptr`.
- * @param add_bytes Additional bytes the caller wants to append after
- *                  `ptr + prev_size`.
- * @return true if the allocation was extended in place; false otherwise.
- */
-bool arena_extend_alloc(Arena *arena, void *ptr, size_t prev_size, size_t add_bytes);
-
-/**
  * @brief Captures the current allocation position in the arena.
  *
  * @param arena A pointer to the arena.
