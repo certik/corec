@@ -7,6 +7,7 @@
 #include <base/hashtable.h>
 #include <base/vector.h>
 #include <base/string.h>
+#include <base/strbuf.h>
 #include <base/math.h>
 #include <base/mem.h>
 #include <base/numconv.h>
@@ -1082,6 +1083,102 @@ void test_string(void) {
     arena_destroy(arena);
 }
 
+void test_strbuf(void) {
+    print("## Testing strbuf...\n");
+    Arena *arena = arena_create(4096);
+
+    // 1. strbuf_make: zero-initialised, no allocation.
+    strbuf b = strbuf_make();
+    assert(b.str == NULL);
+    assert(b.size == 0);
+    assert(b.cap == 0);
+
+    // 2. First append from a zero-cap buffer allocates STRBUF_MIN_CAP (64).
+    strbuf_append(arena, &b, str_lit("hello"));
+    assert(b.size == 5);
+    assert(b.cap >= 5);
+    assert(str_eq(strbuf_to_string(b), str_lit("hello")));
+
+    // 3. Subsequent appends append in place when capacity is available.
+    char *prev_buf = b.str;
+    strbuf_append(arena, &b, str_lit(" world"));
+    assert(b.size == 11);
+    assert(str_eq(strbuf_to_string(b), str_lit("hello world")));
+    // No growth: still pointing at the original allocation.
+    assert(b.str == prev_buf);
+
+    // 4. Growth across at least one doubling boundary copies prior contents.
+    strbuf big = strbuf_make();
+    for (int i = 0; i < 1000; i++) {
+        char c = (char)('a' + (i % 26));
+        strbuf_append_char(arena, &big, c);
+    }
+    assert(big.size == 1000);
+    assert(big.cap >= 1000);
+    for (int i = 0; i < 1000; i++) {
+        assert(big.str[i] == (char)('a' + (i % 26)));
+    }
+
+    // 5. strbuf_make_cap pre-reserves capacity.
+    strbuf pre = strbuf_make_cap(arena, 256);
+    assert(pre.cap == 256);
+    assert(pre.size == 0);
+    assert(pre.str != NULL);
+    char *pre_buf = pre.str;
+    // Appending up to 256 bytes must not move the buffer.
+    for (int i = 0; i < 256; i++) {
+        strbuf_append_char(arena, &pre, 'Q');
+    }
+    assert(pre.size == 256);
+    assert(pre.cap == 256);
+    assert(pre.str == pre_buf);
+    // The next append crosses the cap and forces a growth + copy.
+    strbuf_append_char(arena, &pre, 'Z');
+    assert(pre.size == 257);
+    assert(pre.cap >= 257);
+    assert(pre.str[256] == 'Z');
+    assert(pre.str[0] == 'Q');
+    assert(pre.str[255] == 'Q');
+
+    // 6. strbuf_make_cap(arena, 0) is a no-op allocation.
+    strbuf z = strbuf_make_cap(arena, 0);
+    assert(z.str == NULL);
+    assert(z.cap == 0);
+
+    // 7. strbuf_reserve grows when requested, no-op when already enough.
+    strbuf r = strbuf_make();
+    strbuf_reserve(arena, &r, 128);
+    assert(r.cap >= 128);
+    assert(r.size == 0);
+    char *r_buf = r.str;
+    strbuf_reserve(arena, &r, 64);
+    assert(r.str == r_buf);  // no-op; not moved.
+
+    // 8. strbuf_append_cstr appends a NUL-terminated C string.
+    strbuf c = strbuf_make();
+    strbuf_append_cstr(arena, &c, "abc");
+    strbuf_append_cstr(arena, &c, "de");
+    assert(str_eq(strbuf_to_string(c), str_lit("abcde")));
+
+    // 9. strbuf_append_bytes appends raw bytes (including NULs).
+    strbuf raw = strbuf_make();
+    const unsigned char payload[] = {0xde, 0xad, 0x00, 0xbe, 0xef};
+    strbuf_append_bytes(arena, &raw, payload, sizeof(payload));
+    assert(raw.size == sizeof(payload));
+    assert((unsigned char)raw.str[0] == 0xde);
+    assert((unsigned char)raw.str[2] == 0x00);
+    assert((unsigned char)raw.str[4] == 0xef);
+
+    // 10. Zero-length append is a no-op.
+    strbuf empty = strbuf_make();
+    strbuf_append(arena, &empty, str_lit(""));
+    assert(empty.size == 0);
+    assert(empty.cap == 0);
+
+    arena_destroy(arena);
+    print("strbuf tests passed\n");
+}
+
 void test_std_fds(void) {
     print("## Testing standard file descriptors...\n");
 
@@ -1429,6 +1526,7 @@ void test_base(void) {
     test_vector_int();
     test_vector_int_ptr();
     test_string();
+    test_strbuf();
     test_std_fds();
     test_args();
     test_env();
