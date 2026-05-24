@@ -181,14 +181,21 @@ int base_vsnprintf(char *str, size_t size, const char *format, va_list args) {
                 is_size_t = 1;
             }
 
-            // Check for precision specifier (e.g., %.2f)
+            // Check for precision specifier (e.g., %.2f, %.*s)
             int precision = -1;
             if (*p == '.') {
                 p++;
-                precision = 0;
-                while (*p >= '0' && *p <= '9') {
-                    precision = precision * 10 + (*p - '0');
+                if (*p == '*') {
+                    // %.*X form: precision read from a preceding int arg.
+                    precision = va_arg(args, int);
+                    if (precision < 0) precision = 0;
                     p++;
+                } else {
+                    precision = 0;
+                    while (*p >= '0' && *p <= '9') {
+                        precision = precision * 10 + (*p - '0');
+                        p++;
+                    }
                 }
             }
 
@@ -306,8 +313,18 @@ int base_vsnprintf(char *str, size_t size, const char *format, va_list args) {
                 case 's': {
                     char* s = va_arg(args, char*);
                     if (s == NULL) s = "(null)";
-                    while (*s && pos < size - 1) {
-                        str[pos++] = *s++;
+                    if (precision >= 0) {
+                        // %.*s / %.Ns: emit at most `precision` chars (do not
+                        // require NUL termination — needed for slice-style
+                        // strings like the corec `string` { ptr, size } view).
+                        int n = 0;
+                        while (n < precision && pos < size - 1) {
+                            str[pos++] = s[n++];
+                        }
+                    } else {
+                        while (*s && pos < size - 1) {
+                            str[pos++] = *s++;
+                        }
                     }
                     break;
                 }

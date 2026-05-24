@@ -800,6 +800,30 @@ void test_numconv(void) {
     check_snprintf("%.2e", 12345.0, "1.23e+04", "%e prec2");
     check_snprintf("%.0e", 1.5,     "2e+00",    "%e prec0");
 
+    // %.Ns / %.*s: emit at most N chars from a (possibly non-NUL-terminated)
+    // slice. Used widely by callers that print corec `string` views.
+    {
+        char buf[32];
+        int n = base_snprintf(buf, sizeof(buf), "[%.*s]", 3, "abcdef");
+        (void)n;
+        assert(str_eq(str_from_cstr_view(buf), str_lit("[abc]")));
+    }
+    {
+        char buf[32];
+        // Non-NUL-terminated slice: pass an explicit length so we don't
+        // walk past the end. The 'X' is poison for any over-read.
+        char slice[8] = {'h','i',(char)0,'X','X','X','X','X'};
+        int n = base_snprintf(buf, sizeof(buf), "[%.*s]", 2, slice);
+        (void)n;
+        assert(str_eq(str_from_cstr_view(buf), str_lit("[hi]")));
+    }
+    {
+        char buf[32];
+        int n = base_snprintf(buf, sizeof(buf), "[%.3s]", "abcdef");
+        (void)n;
+        assert(str_eq(str_from_cstr_view(buf), str_lit("[abc]")));
+    }
+
     println(str_lit("numconv tests passed"));
 }
 
