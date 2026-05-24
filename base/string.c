@@ -65,8 +65,17 @@ string char_to_string(Arena *arena, char c) {
 }
 
 string str_concat(Arena *arena, string a, string b) {
+    if (b.size == 0) return a;
+    if (a.size == 0) return str_copy(arena, b);
     size_t total = a.size + b.size;
-    if (total == 0) return (string){NULL, 0};
+    // Fast path: if `a` is the last allocation in `arena`, extend it in
+    // place and append `b` directly. This makes a sequence of
+    // str_concat(arena, x, ...) operations amortized O(1) per call,
+    // avoiding O(N^2) memory use when building up large strings.
+    if (arena_extend_alloc(arena, (void *)a.str, a.size, b.size)) {
+        base_memcpy((char *)a.str + a.size, b.str, b.size);
+        return (string){a.str, total};
+    }
     char *str = arena_new_array(arena, char, total);
     base_memcpy(str, a.str, a.size);
     base_memcpy(str + a.size, b.str, b.size);

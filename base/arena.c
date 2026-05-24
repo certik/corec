@@ -25,6 +25,16 @@ struct arena_s {
     char *current_ptr;
     size_t remaining_in_chunk;
     size_t default_chunk_size;
+    // Bookkeeping for arena_extend_alloc(): the most recent allocation's
+    // pointer and the EXACT requested size (not the aligned size). This
+    // lets arena_extend_alloc safely write into the alignment slack of
+    // the last allocation without trampling caller aliases that may
+    // share that arena_alloc but address it as a smaller view (e.g. two
+    // 1-byte views into a single 2-byte allocation — see test_format
+    // for a real instance of this pattern). When no extension is in
+    // flight, last_alloc_ptr is NULL.
+    char *last_alloc_ptr;
+    size_t last_alloc_size;
 };
 
 // Aligns a value up to the nearest multiple of ARENA_ALIGNMENT.
@@ -67,6 +77,8 @@ Arena *arena_create(size_t initial_size) {
 
     arena->current_ptr = (char *)data_start;
     arena->remaining_in_chunk = (data_start < chunk_end) ? (chunk_end - data_start) : 0;
+    arena->last_alloc_ptr = NULL;
+    arena->last_alloc_size = 0;
 
     return arena;
 }
@@ -83,6 +95,8 @@ try_alloc:
         void *ptr = arena->current_ptr;
         arena->current_ptr += aligned_size;
         arena->remaining_in_chunk -= aligned_size;
+        arena->last_alloc_ptr = (char *)ptr;
+        arena->last_alloc_size = size;
         return ptr;
     }
 
@@ -141,6 +155,35 @@ try_alloc:
     goto try_alloc;
 }
 
+bool arena_extend_alloc(Arena *arena, void *ptr, size_t prev_size,
+                        size_t add_bytes) {
+    if (!arena || !ptr || prev_size == 0) return false;
+    if (add_bytes == 0) return true;
+
+    // Only the exact pointer + size returned by the most recent
+    // arena_alloc may be extended. Sub-views into a previous allocation
+    // (e.g. two strings backed by adjacent halves of one alloc) must NOT
+    // be extended in place, as that would overwrite the sibling view.
+    if (arena->last_alloc_ptr != (char *)ptr) return false;
+    if (arena->last_alloc_size != prev_size) return false;
+
+    size_t prev_aligned = (prev_size + ARENA_ALIGNMENT - 1)
+                          & ~(size_t)(ARENA_ALIGNMENT - 1);
+    size_t new_logical = prev_size + add_bytes;
+    size_t new_aligned = (new_logical + ARENA_ALIGNMENT - 1)
+                         & ~(size_t)(ARENA_ALIGNMENT - 1);
+
+    if (new_aligned > prev_aligned) {
+        size_t extra = new_aligned - prev_aligned;
+        if (extra > arena->remaining_in_chunk) return false;
+        arena->current_ptr += extra;
+        arena->remaining_in_chunk -= extra;
+    }
+    // Record the new logical size so further extensions stack correctly.
+    arena->last_alloc_size = new_logical;
+    return true;
+}
+
 void arena_destroy(Arena *arena) {
     assert(arena);
     struct arena_chunk *current = arena->first_chunk;
@@ -174,6 +217,12 @@ void arena_reset(Arena *arena, arena_pos_t pos) {
     uintptr_t current_pos = (uintptr_t)pos.ptr;
 
     arena->remaining_in_chunk = (current_pos < chunk_end) ? (chunk_end - current_pos) : 0;
+
+    // After a reset, the previous "last allocation" record may point
+    // into freed-territory, so invalidate it. Callers must arena_alloc
+    // again before they can use arena_extend_alloc.
+    arena->last_alloc_ptr = NULL;
+    arena->last_alloc_size = 0;
 }
 
 size_t arena_chunk_count(Arena *arena) {
