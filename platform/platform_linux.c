@@ -38,7 +38,7 @@
 // can provide its own strong definitions without colliding with these at
 // link time. Code that only links against corec gets these unconditionally.
 __attribute__((weak))
-__attribute__((no_builtin("memcpy")))
+COREC_NO_BUILTIN("memcpy")
 void* memcpy(void* dest, const void* src, size_t n) {
     unsigned char* d = (unsigned char*)dest;
     const unsigned char* s = (const unsigned char*)src;
@@ -47,7 +47,7 @@ void* memcpy(void* dest, const void* src, size_t n) {
 }
 
 __attribute__((weak))
-__attribute__((no_builtin("memset")))
+COREC_NO_BUILTIN("memset")
 void* memset(void* s, int c, size_t n) {
     unsigned char* p = (unsigned char*)s;
     for (size_t i = 0; i < n; i++) p[i] = (unsigned char)c;

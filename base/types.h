@@ -127,6 +127,27 @@ typedef signed long long int64_t;
 
 #define array_size(a) (sizeof(a) / sizeof((a)[0]))
 
+// COREC_NO_BUILTIN(name [, name ...])
+//
+// Function attribute that asks the compiler NOT to rewrite calls inside
+// the annotated function as builtin/libcall instances of the named
+// functions. Used on the byte-loop implementations of memcpy / memmove /
+// memset so that clang's loop-idiom-recognition pass does not convert
+// the loop body into a self-recursive memcpy()/memset() libcall at
+// -O3 -flto (which would crash with stack overflow in freestanding /
+// -nostdlib builds where the libcall resolves back to this same
+// function).
+//
+// Only Clang implements __attribute__((no_builtin(...))). GCC and MSVC
+// expand the macro to nothing; on those toolchains we rely on a
+// combination of -fno-builtin at the build level and the fact that loop
+// idiom recognition is less aggressive without LTO.
+#if defined(__clang__)
+#  define COREC_NO_BUILTIN(...) __attribute__((no_builtin(__VA_ARGS__)))
+#else
+#  define COREC_NO_BUILTIN(...)
+#endif
+
 #ifdef __cplusplus
 }
 #endif
