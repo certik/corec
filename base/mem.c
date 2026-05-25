@@ -20,6 +20,14 @@ int base_strcmp(const char* s1, const char* s2) {
     return *(const unsigned char*)s1 - *(const unsigned char*)s2;
 }
 
+// base_memcpy / base_memmove / base_memset are tight byte-copy loops.
+// At -O3 -flto, clang's loop-idiom-recognition pass detects the pattern
+// and replaces the loop body with a memcpy()/memset()/memmove() libcall.
+// When a freestanding/-nostdlib build resolves those libcalls back to
+// platform_linux.c's stubs (which delegate via the same path), the
+// result is unbounded recursion and a stack overflow. The no_builtin
+// attribute disables that rewrite for these specific functions only.
+__attribute__((no_builtin("memcpy")))
 void* base_memcpy(void* dest, const void* src, size_t n) {
     unsigned char* d = (unsigned char*)dest;
     const unsigned char* s = (const unsigned char*)src;
@@ -29,6 +37,7 @@ void* base_memcpy(void* dest, const void* src, size_t n) {
     return dest;
 }
 
+__attribute__((no_builtin("memcpy", "memmove")))
 void* base_memmove(void* dest, const void* src, size_t n) {
     unsigned char* d = (unsigned char*)dest;
     const unsigned char* s = (const unsigned char*)src;
@@ -63,6 +72,7 @@ int base_memcmp(const void* s1, const void* s2, size_t n) {
     return 0;
 }
 
+__attribute__((no_builtin("memset")))
 void* base_memset(void* s, int c, size_t n) {
     unsigned char* p = (unsigned char*)s;
     for (size_t i = 0; i < n; i++) {

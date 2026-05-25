@@ -25,11 +25,20 @@
 // will not turn them back into self-recursive memcpy/memset calls via
 // loop-idiom recognition at higher optimization levels.
 //
+// However, simple byte loops are *not* enough by themselves: at -O3 -flto
+// clang's loop-idiom-recognition pass still detects these patterns and
+// rewrites the loop body as a memcpy()/memset() libcall — which then
+// resolves back to this very function and recurses forever (stack
+// overflow). The no_builtin attribute disables that rewrite for the
+// specific builtin in question within this function only, leaving the
+// rest of the file free to use the builtins normally.
+//
 // They are marked weak so a higher layer (for example a C standard library
 // subset that wraps memcpy()/memset() around base_memcpy()/base_memset())
 // can provide its own strong definitions without colliding with these at
 // link time. Code that only links against corec gets these unconditionally.
 __attribute__((weak))
+__attribute__((no_builtin("memcpy")))
 void* memcpy(void* dest, const void* src, size_t n) {
     unsigned char* d = (unsigned char*)dest;
     const unsigned char* s = (const unsigned char*)src;
@@ -38,6 +47,7 @@ void* memcpy(void* dest, const void* src, size_t n) {
 }
 
 __attribute__((weak))
+__attribute__((no_builtin("memset")))
 void* memset(void* s, int c, size_t n) {
     unsigned char* p = (unsigned char*)s;
     for (size_t i = 0; i < n; i++) p[i] = (unsigned char)c;
