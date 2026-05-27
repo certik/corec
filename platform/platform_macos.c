@@ -45,7 +45,14 @@ extern int munmap(void *addr, size_t len);
 // Emulated heap state for macOS.
 static uint8_t* linux_heap_base = NULL; // Reuse name for consistency
 static size_t committed_pages = 0;
-static const size_t RESERVED_SIZE = 1ULL << 32; // 4GB virtual space
+// 32 GiB virtual reservation. macOS arm64 has 47-bit user VA (128 TiB),
+// so this is comfortably small relative to available address space.
+// mmap(PROT_NONE) does not commit physical memory until mprotect makes
+// a page RW, so the on-startup cost is just a single VM range entry
+// in the kernel. Large enough for tinyc selfhost: the wasm-pipeline's
+// wasm -> wasmstack -> wasmssa -> wmir lift on a ~3 MiB linked.wasm
+// peaks at ~5 GiB of MLIR ops in the shared arena, well under 32 GiB.
+static const size_t RESERVED_SIZE = 32ULL << 30; // 32 GiB
 
 // Command line arguments storage
 static int stored_argc = 0;
