@@ -39,7 +39,8 @@ jobs:
           - platform: windows
             os: windows-latest
             pixi-command: |
-              call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat" || exit /b 1
+              for /f "usebackq tokens=*" %%i in (`"C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "VSINSTALL=%%i"
+              call "%VSINSTALL%\VC\Auxiliary\Build\vcvars64.bat" || exit /b 1
               set COREC_TEST_ENV=corec_test_value
               pixi run shell -c "printf 'a1\nb2\nc3\n' > expected_args.txt" || exit /b 1
               pixi run -e windows test_windows a1 b2 c3 || exit /b 1
