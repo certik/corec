@@ -1,4 +1,5 @@
 #include <platform/platform.h>
+#include <platform/syscall6.h>
 #include <base/types.h>
 #include <base/buddy.h>
 
@@ -48,7 +49,12 @@ void* memcpy(void* dest, const void* src, size_t n) {
     const unsigned char* s = (const unsigned char*)src;
     for (size_t i = 0; i < n; i++) {
         d[i] = s[i];
+        // Block clang/gcc loop-idiom-recognition from rewriting this byte loop
+        // into a self-recursive memcpy call (see comment above). tinyC does no
+        // such transform and has no inline asm, so the barrier is omitted.
+#ifndef __TINYC__
         __asm__ volatile("" ::: "memory");
+#endif
     }
     return dest;
 }
@@ -58,7 +64,9 @@ void* memset(void* s, int c, size_t n) {
     unsigned char* p = (unsigned char*)s;
     for (size_t i = 0; i < n; i++) {
         p[i] = (unsigned char)c;
+#ifndef __TINYC__
         __asm__ volatile("" ::: "memory");
+#endif
     }
     return s;
 }
@@ -117,18 +125,14 @@ typedef struct {
 static MmapHandle g_mmap_handles[MMAP_HANDLE_CAP] = {0};
 
 // Helper function to make a raw syscall.
+//
+// The trap goes through the compiler-independent __builtin_syscall6 intrinsic
+// (see <platform/syscall6.h>): tinyC lowers it to the target's syscall trap,
+// and on clang/gcc the header polyfills it with inline asm. This file therefore
+// contains no syscall asm of its own. The numbers below are x86_64 numbers, so
+// a tinyC-compiled platform_linux.c is only correct on an x86_64-Linux backend.
 static inline long syscall(long n, long a1, long a2, long a3, long a4, long a5, long a6) {
-    long ret;
-    register long r10 __asm__("r10") = a4;
-    register long r8 __asm__("r8") = a5;
-    register long r9 __asm__("r9") = a6;
-    __asm__ volatile (
-        "syscall"
-        : "=a"(ret)
-        : "a"(n), "D"(a1), "S"(a2), "d"(a3), "r"(r10), "r"(r8), "r"(r9)
-        : "rcx", "r11", "memory"
-    );
-    return ret;
+    return __builtin_syscall6(n, a1, a2, a3, a4, a5, a6);
 }
 
 // Implementation of `fd_write` using the `writev` syscall.
@@ -214,7 +218,14 @@ void* platform_heap_grow(size_t num_bytes) {
     return old_top;
 }
 
-// Math functions using x86_64 SSE instructions
+// Math functions. clang/gcc emit the x86_64 SSE instruction via inline asm
+// (guaranteeing no libm call in a freestanding build); tinyC, which has no
+// inline asm, uses the __builtin_sqrt[f] intrinsics, which its backend lowers
+// to the same hardware sqrt instruction.
+#if defined(__TINYC__)
+double fast_sqrt(double x) { return __builtin_sqrt(x); }
+float  fast_sqrtf(float x) { return __builtin_sqrtf(x); }
+#else
 double fast_sqrt(double x) {
     double result;
     __asm__("sqrtsd %1, %0" : "=x"(result) : "x"(x));
@@ -226,6 +237,7 @@ float fast_sqrtf(float x) {
     __asm__("sqrtss %1, %0" : "=x"(result) : "x"(x));
     return result;
 }
+#endif
 
 // Public initialization function for hosts that provide their own entry
 // point (PLATFORM_SKIP_ENTRY); the default _start path below calls this
