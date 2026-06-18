@@ -69,9 +69,9 @@ void* memset(void* s, int c, size_t n) {
         __asm__ volatile("" ::: "memory");
 #endif
     }
-    #endif
     return s;
 }
+#endif
 
 // Syscall numbers for x86_64
 #define SYS_READ 0
