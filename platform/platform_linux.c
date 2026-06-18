@@ -43,6 +43,7 @@
 // base_memcpy()/base_memset()) can provide its own strong definitions
 // without colliding with these at link time. Code that only links
 // against corec gets these unconditionally.
+#ifndef COREC_STDLIB_PROVIDES_MEM
 __attribute__((weak))
 void* memcpy(void* dest, const void* src, size_t n) {
     unsigned char* d = (unsigned char*)dest;
@@ -70,6 +71,7 @@ void* memset(void* s, int c, size_t n) {
     }
     return s;
 }
+#endif
 
 // Syscall numbers for x86_64
 #define SYS_READ 0
