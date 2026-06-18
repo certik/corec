@@ -68,6 +68,15 @@ size_t double_to_str(double val, char* buf, int precision) {
     return pos;
 }
 
+static size_t double_to_str_g(double val, char* buf, int precision) {
+    if (precision < 0) precision = 6;
+    size_t len = double_to_str(val, buf, precision);
+    while (len > 0 && buf[len - 1] == '0') len--;
+    if (len > 0 && buf[len - 1] == '.') len--;
+    if (len == 0) buf[len++] = '0';
+    return len;
+}
+
 // Format `val` as `[-]d.ddde[+-]NN` (C's "%e"), with `precision` fractional
 // digits in the mantissa. Always at least two exponent digits.
 size_t double_to_str_e(double val, char* buf, int precision) {
@@ -294,6 +303,15 @@ int base_vsnprintf(char *str, size_t size, const char *format, va_list args) {
                     double val = va_arg(args, double);
                     if (precision < 0) precision = 6;
                     size_t len = double_to_str(val, temp_buf, precision);
+                    size_t copy_len = (pos + len < size - 1) ? len : (size - 1 - pos);
+                    for (size_t i = 0; i < copy_len; i++) {
+                        str[pos++] = temp_buf[i];
+                    }
+                    break;
+                }
+                case 'g': {
+                    double val = va_arg(args, double);
+                    size_t len = double_to_str_g(val, temp_buf, precision);
                     size_t copy_len = (pos + len < size - 1) ? len : (size - 1 - pos);
                     for (size_t i = 0; i < copy_len; i++) {
                         str[pos++] = temp_buf[i];

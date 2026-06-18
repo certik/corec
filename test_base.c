@@ -720,7 +720,7 @@ static void check_snprintf(const char *fmt, double val, const char *expected, co
 }
 
 void test_numconv(void) {
-    println(str_lit("## Testing numconv (base_snprintf %f / %e)..."));
+    println(str_lit("## Testing numconv (base_snprintf %f / %e / %g)..."));
 
     // %f sanity
     check_snprintf("%.2f", 1.5, "1.50", "%f");
@@ -736,6 +736,13 @@ void test_numconv(void) {
     // %e at non-default precision (rounding)
     check_snprintf("%.2e", 12345.0, "1.23e+04", "%e prec2");
     check_snprintf("%.0e", 1.5,     "2e+00",    "%e prec0");
+
+    // %g: fixed-point formatting with trailing zero and decimal trimming
+    check_snprintf("%g",   1.5,    "1.5",   "%g");
+    check_snprintf("%g",   1.0,    "1",     "%g trim frac");
+    check_snprintf("%g",   0.0,    "0",     "%g zero");
+    check_snprintf("%g",  -1.25,   "-1.25", "%g neg");
+    check_snprintf("%.3g", 1.25,   "1.25",  "%g precision");
 
     // %.Ns / %.*s: emit at most N chars from a (possibly non-NUL-terminated)
     // slice. Used widely by callers that print corec `string` views.
