@@ -23,18 +23,8 @@
 // host platform_*.c with `-DPLATFORM_HOST_SHIM`, which (see platform.h) renames
 // the platform I/O entry points to `__host_platform_*`.
 
+#include "wasi_adapter.h"
 #include <platform/platform.h>
-
-// Short aliases for the wasm import ABI (every "pointer" is an i32 linmem offset).
-typedef uint32_t u32;
-typedef int32_t  i32;
-typedef int64_t  i64;
-typedef uint64_t u64;
-
-// Globals filled by the backend's _start (crt0).
-extern u64 __wasm_linmem_base;   // base address of the wasm linear-memory image
-extern i32 __wasm_argc;
-extern u64 __wasm_argv;          // host `char **argv`, as an integer
 
 // Darwin: a freshly O_CREAT'd file gets a garbage mode because open()'s mode is
 // a variadic arg; fix it explicitly. fchmod is non-variadic. (No-op-safe

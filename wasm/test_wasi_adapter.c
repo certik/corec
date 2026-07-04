@@ -20,24 +20,11 @@
 #include <stdio.h>
 #include <string.h>
 
-typedef unsigned int       u32;
-typedef long long          i64;
-typedef unsigned long long u64;
-
-// Adapter exports (the WASI import ABI: every "pointer" is an i32 linmem offset).
-extern u32 fd_write(u32 fd, u32 iovs, u32 iovs_len, u32 nwritten);
-extern u32 fd_read(u32 fd, u32 iovs, u32 iovs_len, u32 nread);
-extern u32 fd_close(u32 fd);
-extern u32 fd_seek(u32 fd, i64 offset, u32 whence, u32 newoffset);
-extern u32 fd_tell(u32 fd, u32 offset_out);
-extern u32 path_open(u32 dirfd, u32 dirflags, u32 path, u32 path_len, u32 oflags,
-                     u64 rights, u64 rights_inh, u32 fdflags, u32 opened_fd);
-extern u32 args_sizes_get(u32 out_argc, u32 out_buf_size);
-extern u32 args_get(u32 argv_ofs_arr, u32 argv_buf);
+#include "wasi_adapter.h"
 
 // Globals the adapter reads (normally set by the lifted binary's crt0/_start).
 u64 __wasm_linmem_base;
-int __wasm_argc;
+i32 __wasm_argc;
 u64 __wasm_argv;
 
 // platform_init() (unused here) references buddy_init(); stub it so this
