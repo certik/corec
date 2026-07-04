@@ -96,6 +96,19 @@ clang \
 
 test_linux = { cmd = "./corec_test_linux", depends-on = ["build_linux"], description = "Run corec_test_linux native test binary" }
 
+# Unit test for the wasm->native lift host shim (wasm/wasi_adapter.c). Compiles
+# the adapter and the host platform with the `platform_* -> __host_platform_*`
+# renames that tinyC's `--from-wasm` lift applies, then drives the adapter's WASI
+# entry points against a fake linear-memory buffer. No wasm/tinyC toolchain needed.
+test_wasi_adapter = { cmd = """
+clang -c wasm/wasi_adapter.c -o wasi_adapter.o \
+    -nostdlib -nostdinc -fno-builtin -I platform -I . -DPLATFORM_HOST_SHIM && \
+clang -c platform/platform_linux.c -o host_platform_linux.o \
+    -DPLATFORM_SKIP_ENTRY -DPLATFORM_HOST_SHIM -nostdlib -nostdinc -fno-builtin -I platform -I . && \
+clang wasm/test_wasi_adapter.c wasi_adapter.o host_platform_linux.o -o test_wasi_adapter_linux && \
+./test_wasi_adapter_linux
+""", description = "Build and run the WASI adapter unit test (wasm->native lift host shim, Linux)" }
+
 [feature.linux.target.linux-64.dependencies]
 clang = ">=20.1.4,<21"
 
@@ -132,6 +145,19 @@ clang \
 """, description = "Build corec_test_macos native binary (macOS only)" }
 
 test_macos = { cmd = "./corec_test_macos", depends-on = ["build_macos"], description = "Run corec_test_macos native test binary" }
+
+# Unit test for the wasm->native lift host shim (wasm/wasi_adapter.c). Compiles
+# the adapter and the host platform with the `platform_* -> __host_platform_*`
+# renames that tinyC's `--from-wasm` lift applies, then drives the adapter's WASI
+# entry points against a fake linear-memory buffer. No wasm/tinyC toolchain needed.
+test_wasi_adapter = { cmd = """
+clang -c wasm/wasi_adapter.c -o wasi_adapter.o \
+    -nostdlib -nostdinc -fno-builtin -I platform -I . -DPLATFORM_HOST_SHIM && \
+clang -c platform/platform_macos.c -o host_platform_macos.o \
+    -DPLATFORM_SKIP_ENTRY -DPLATFORM_HOST_SHIM -nostdlib -nostdinc -fno-builtin -I platform -I . && \
+clang wasm/test_wasi_adapter.c wasi_adapter.o host_platform_macos.o -o test_wasi_adapter_macos && \
+./test_wasi_adapter_macos
+""", description = "Build and run the WASI adapter unit test (wasm->native lift host shim, macOS)" }
 
 #=============================================================================
 # Windows
