@@ -2,6 +2,28 @@
 
 #include <base/types.h>
 
+// -----------------------------------------------------------------------------
+// wasm -> native lift host shim
+//
+// For the wasm->native lift (tinyC `--from-wasm`), the lifted module already
+// contains the wasm-side platform_* (compiled from platform_wasm.c), which sit
+// *above* the host copies on the call chain (app -> wasm platform_fd_write ->
+// fd_write [wasi_adapter.c] -> host platform_fd_write). To reach the host copy
+// without colliding with (or recursing into) the wasm-side one, the lift's host
+// pieces -- wasm/wasi_adapter.c and the host platform_*.c -- are compiled with
+// -DPLATFORM_HOST_SHIM, which renames the platform I/O entry points to
+// __host_platform_*. Normal (non-lift) builds leave PLATFORM_HOST_SHIM undefined
+// and are completely unaffected.
+#ifdef PLATFORM_HOST_SHIM
+#define platform_fd_write  __host_platform_fd_write
+#define platform_fd_read   __host_platform_fd_read
+#define platform_fd_close  __host_platform_fd_close
+#define platform_fd_seek   __host_platform_fd_seek
+#define platform_fd_tell   __host_platform_fd_tell
+#define platform_path_open __host_platform_path_open
+#endif
+// -----------------------------------------------------------------------------
+
 /*
  * The platform interface: the only way a C program in this project can
  * communicate with the system. Everything else (the `base/` library, any

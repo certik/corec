@@ -19,6 +19,7 @@ jobs:
               printf 'a1\nb2\nc3\n' > expected_args.txt
               pixi run -e linux test_linux a1 b2 c3
               echo "test input data" | pixi run -e linux ./corec_test_linux --test-input
+              pixi run -e linux test_wasi_adapter
               pixi run -e wasm build_wasm
               pixi run -e wasm wasmtime --dir . --env COREC_TEST_ENV=corec_test_value corec_test.wasm a1 b2 c3
               echo "test input data" | pixi run -e wasm wasmtime --dir . --env COREC_TEST_ENV=corec_test_value corec_test.wasm --test-input
@@ -31,6 +32,7 @@ jobs:
               printf 'a1\nb2\nc3\n' > expected_args.txt
               pixi run -e macos test_macos a1 b2 c3
               echo "test input data" | pixi run -e macos ./corec_test_macos --test-input
+              pixi run -e macos test_wasi_adapter
               pixi run -e wasm build_wasm
               pixi run -e wasm wasmtime --dir . --env COREC_TEST_ENV=corec_test_value corec_test.wasm a1 b2 c3
               echo "test input data" | pixi run -e wasm wasmtime --dir . --env COREC_TEST_ENV=corec_test_value corec_test.wasm --test-input
