@@ -28,8 +28,19 @@
 
 // Darwin: a freshly O_CREAT'd file gets a garbage mode because open()'s mode is
 // a variadic arg; fix it explicitly. fchmod is non-variadic. (No-op-safe
-// elsewhere.) Renamed to the underscored libSystem symbol by the driver.
+// elsewhere.) Mach-O links the underscored libSystem symbol; the freestanding
+// ELF backend has no libc, so route through __builtin_syscall6 on tinyC.
+#if defined(__TINYC__)
+#include <platform/syscall6.h>
+#ifndef SYS_FCHMOD
+#define SYS_FCHMOD 91
+#endif
+static inline int fchmod(int fd, int mode) {
+    return (int)__builtin_syscall6(SYS_FCHMOD, (long)fd, (long)mode, 0, 0, 0, 0);
+}
+#else
 extern int fchmod(int fd, int mode);
+#endif
 
 static void *wasm_ptr(u32 off) { return (void *)(__wasm_linmem_base + (u64)off); }
 
@@ -103,6 +114,49 @@ u32 path_open(u32 dirfd, u32 dirflags, u32 path, u32 path_len, u32 oflags,
     return 0;
 }
 
+#ifdef TINYC_ELF_NATIVE_HOST
+// Lifted tinyc passes wasm32 i32 byte offsets for every WASI "pointer" argument.
+// Always map through linmem; do not sign-extend high offsets (>= 0x80000000) as
+// host addresses — that turns 0x80000000 into 0xffffffff80000000 and faults.
+static void *native_out_ptr(u32 off) {
+    return wasm_ptr(off);
+}
+
+u32 args_sizes_get(u32 out_argc, u32 out_buf_size) {
+    u32 *argc_p = (u32 *)native_out_ptr(out_argc);
+    u32 *sz_p = (u32 *)native_out_ptr(out_buf_size);
+    if (!argc_p || !sz_p) return 1;
+    *argc_p = (u32)__wasm_argc;
+    char **host_argv = (char **)(unsigned long)__wasm_argv;
+    u32 total = 0;
+    for (i32 i = 0; i < __wasm_argc; i = i + 1) {
+        char *s = host_argv[i];
+        if (!s) continue;
+        while (*s) { total = total + 1; s = s + 1; }
+        total = total + 1;
+    }
+    *sz_p = total;
+    return 0;
+}
+
+u32 args_get(u32 argv_ofs_arr, u32 argv_buf) {
+    char **argv = (char **)(unsigned long)__wasm_argv;
+    char *cur = (char *)native_out_ptr(argv_buf);
+    if (!cur) return 1;
+    for (i32 i = 0; i < __wasm_argc; i = i + 1) {
+        *(u32 *)native_out_ptr(argv_ofs_arr + (u32)i * 4) = (u32)(cur - (char *)__wasm_linmem_base);
+        char *s = argv[i];
+        if (!s) { *cur++ = 0; continue; }
+        for (;;) {
+            char c = *s;
+            s = s + 1;
+            *cur++ = c;
+            if (c == 0) break;
+        }
+    }
+    return 0;
+}
+#else
 // args_sizes_get(out_argc, out_buf_size): argc and total argv byte size
 // (including nul terminators).
 u32 args_sizes_get(u32 out_argc, u32 out_buf_size) {
@@ -136,6 +190,7 @@ u32 args_get(u32 argv_ofs_arr, u32 argv_buf) {
     }
     return 0;
 }
+#endif
 
 u32 environ_sizes_get(u32 out_count, u32 out_buf_size) {
     *(u32 *)wasm_ptr(out_count) = 0;
