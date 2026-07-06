@@ -26,6 +26,7 @@ extern int close(int fd);
 extern int dup(int fd);
 extern int dup2(int oldfd, int newfd);
 extern int fcntl(int fd, int cmd, ...);
+extern int fchmod(int fd, int mode);
 extern ssize_t readv(int fd, const struct iovec *iov, int iovcnt);
 extern off_t lseek(int fd, off_t offset, int whence);
 extern int munmap(void *addr, size_t len);
@@ -224,6 +225,11 @@ platform_fd_t platform_path_open(const char* path, size_t path_len, uint64_t rig
         close(fd);
         fd = new_fd;
     }
+
+    // O_CREAT: open()'s mode is variadic and unreliable in some lift paths;
+    // fix the created-file mode explicitly (no-op-safe when mode is already 0644).
+    if ((oflags & PLATFORM_O_CREAT) && fd >= 0)
+        fchmod(fd, 0644);
 
     return fd;
 }
