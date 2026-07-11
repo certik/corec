@@ -87,7 +87,6 @@ void* memset(void* s, int c, size_t n) {
 #define SYS_DUP2 33
 #define SYS_EXIT 60
 #define SYS_FCNTL 72
-#define SYS_FCHMOD 91
 #define SYS_OPENAT 257
 
 // AT_FDCWD: special value meaning "current working directory" for openat
@@ -314,11 +313,6 @@ platform_fd_t platform_path_open(const char* path, size_t path_len, uint64_t rig
         syscall(SYS_CLOSE, result, 0, 0, 0, 0, 0);
         result = new_fd;
     }
-
-    // O_CREAT: open()'s mode is variadic and unreliable in some lift paths;
-    // fix the created-file mode explicitly (no-op-safe when mode is already 0644).
-    if ((oflags & PLATFORM_O_CREAT) && result >= 0)
-        syscall(SYS_FCHMOD, result, (long)0644, 0, 0, 0, 0);
 
     return (platform_fd_t)result;
 }

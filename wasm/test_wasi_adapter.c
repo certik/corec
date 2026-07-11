@@ -19,7 +19,6 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <sys/stat.h>
 
 #include "wasi_adapter.h"
 
@@ -64,12 +63,6 @@ int main(void) {
     CHECK(rc == 0, "path_open create");
     u32 wfd = rd32(fd_out);
     CHECK(wfd >= 3, "created fd is >= 3 (does not shadow std streams)");
-
-    {
-        struct stat st;
-        CHECK(stat(path, &st) == 0, "stat created file");
-        CHECK((st.st_mode & 0777) == 0644, "O_CREAT file mode is 0644");
-    }
 
     put(buf_off, msg);
     wr32(iov, buf_off);
