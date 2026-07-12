@@ -15,6 +15,8 @@
 // __host_platform_*. Normal (non-lift) builds leave PLATFORM_HOST_SHIM undefined
 // and are completely unaffected.
 #ifdef PLATFORM_HOST_SHIM
+#define platform_init      __host_platform_init
+#define platform_exit      __host_platform_exit
 #define platform_fd_write  __host_platform_fd_write
 #define platform_fd_read   __host_platform_fd_read
 #define platform_fd_close  __host_platform_fd_close

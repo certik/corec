@@ -26,11 +26,6 @@
 #include "wasi_adapter.h"
 #include <platform/platform.h>
 
-// Darwin: a freshly O_CREAT'd file gets a garbage mode because open()'s mode is
-// a variadic arg; fix it explicitly. fchmod is non-variadic. (No-op-safe
-// elsewhere.) Renamed to the underscored libSystem symbol by the driver.
-extern int fchmod(int fd, int mode);
-
 static void *wasm_ptr(u32 off) { return (void *)(__wasm_linmem_base + (u64)off); }
 
 // i32 fd_write(fd, iovs, iovs_len, nwritten): walk (buf_ofs, len) iovec pairs in
@@ -99,7 +94,6 @@ u32 path_open(u32 dirfd, u32 dirflags, u32 path, u32 path_len, u32 oflags,
     int fd = platform_path_open(buf, (size_t)path_len, rights, (int)oflags);
     if (fd < 0) return 44;
     *(u32 *)wasm_ptr(opened_fd) = (u32)fd;
-    if (oflags & 1) fchmod(fd, 0644);  // O_CREAT: fix the created-file mode
     return 0;
 }
 
