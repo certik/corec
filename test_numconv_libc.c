@@ -21,7 +21,7 @@ int base_vsnprintf(char *str, size_t size, const char *format, va_list args);
 static int failures = 0;
 static int checks = 0;
 
-#define BUF 256
+#define BUF 512
 
 static void check_v(const char *expected, const char *fmt, va_list ap) {
     char ref[BUF], got[BUF];
@@ -118,7 +118,7 @@ static void sweep_ints(void) {
         if ((fl & 16) && (conv == 'd' || conv == 'i' || conv == 'u')) continue;
         const char *l = lmods[li];
         mkfmt(fmt, fl, widths[wi], precs[pi], l, conv);
-        int wstar = widths[wi][0] == '*', pstar = precs[pi][1] == '*';
+        int wstar = widths[wi][0] == '*', pstar = precs[pi][0] && precs[pi][1] == '*';
         for (int sw = -1; sw <= 1; sw += 2)
         for (size_t vi = 0; vi < sizeof(vals) / sizeof(vals[0]); vi++) {
             if (!wstar && sw > 0) continue;
@@ -146,10 +146,13 @@ static void sweep_ints(void) {
 static void sweep_other(void) {
     static const char *strs[] = {"", "a", "hello", "hello, world"};
     static const char chars[] = {'x', ' ', '%'};
-    static const double dbls[] = {0.0, -0.0, 0.5, -0.5, 1.5, -2.25, 100.75, 12345.0};
-    // base %g is %f with trailing zeros removed and %e does not round ties to
-    // even, so only use precisions where that agrees with C.
-    static const char *dfmts[] = {"f", ".2f", ".3f", "e", ".0e", ".2e", "g"};
+    // base %f truncates its fractional digits (C rounds), and base %e/%g round
+    // exact decimal ties up (C rounds them to even), so only use values and
+    // precisions where neither matters.
+    static const double dbls[] = {0.0, -0.0, 0.5, -0.5, 1.5, -2.25, 100.75, 12345.0,
+                                  123456789.0, 0.000123456, 1e-10, 1e19, -1e20, 1e300};
+    static const char *dfmts[] = {"f", ".2f", ".3f", "F", "e", ".0e", ".2e", "E",
+                                  "g", ".0g", ".1g", ".3g", "G"};
     char fmt[64];
     for (unsigned fl = 0; fl < 32; fl++)
     for (size_t wi = 0; wi < sizeof(widths) / sizeof(widths[0]) - 1; wi++) {
@@ -164,8 +167,6 @@ static void sweep_other(void) {
             if (!(fl & (4 | 8)))
                 check(NULL, mkfmt(fmt, fl, widths[wi], "", "", 'p'), (void*)0xabc);
         }
-        // '#' changes f/e/g output and is not supported there.
-        if (fl & 16) continue;
         for (size_t fi = 0; fi < sizeof(dfmts) / sizeof(dfmts[0]); fi++) {
             const char *d = dfmts[fi];
             char prec[8] = "";

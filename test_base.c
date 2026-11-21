@@ -729,7 +729,7 @@ static void check_fmt(const char *expected, const char *fmt, ...) {
     va_start(ap, fmt);
     int len = 0;
     while (expected[len]) len++;
-    char buf[64];
+    char buf[512];
     for (int size = -1; size <= len + 1; size++) {
         for (int i = 0; i < (int)sizeof(buf); i++) buf[i] = '#';
         va_copy(a, ap);
@@ -763,6 +763,17 @@ void test_numconv(void) {
         volatile double zero = 0.0;
         check_fmt("inf", "%f", 1.0 / zero);
         check_fmt("[  -inf]", "[%6g]", -1.0 / zero);
+        check_fmt("[INF]", "[%E]", 1.0 / zero);
+    }
+    {
+        // Unsupported conversions still consume their argument, so the
+        // following conversions stay aligned: %n (nothing is written through
+        // the pointer), %a and long double.
+        int t = 7;
+        check_fmt("xy5", "x%ny%d", &t, 5);
+        assert(t == 7);
+        check_fmt("[]5", "[%a]%d", 1.5, 5);
+        check_fmt("[]6", "[%Lf]%d", (long double)1.5, 6);
     }
 
     // %f sanity
