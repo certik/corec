@@ -34,14 +34,19 @@ size_t double_to_str_e(double val, char* buf, int precision);
 // uppercase: 0 for lowercase (a-f), non-zero for uppercase (A-F)
 size_t uint64_to_hex_str(uint64_t val, char* buf, int uppercase);
 
-// Simple vsnprintf/snprintf implementations for base/ (only for nostdlib builds)
-// Supports: %d, %i, %u, %ld, %li, %lu, %lld, %lli, %llu, %zu, %x, %X, %lx, %lX, %llx, %llX, %p, %c, %s, %f, %g, %.Nf, %%
-// Returns number of characters written (not including null terminator)
+// vsnprintf/snprintf for base/ (used by the nostdlib C library layer).
+// Follows C's vsnprintf contract: writes at most `size` bytes including the
+// terminating NUL (always NUL-terminates when size > 0; `str` may be NULL when
+// size == 0) and returns the length the full output would have (not counting
+// the NUL), so callers can measure with (NULL, 0) and detect truncation.
+// Supports:
+//   flags: - 0 + space #   width and precision: N or *
+//   length modifiers: hh h l ll j z t
+//   conversions: d i u o x X p c s f e g %
+// Limitations: %f/%e/%g use a simple algorithm (fractional digits are
+// truncated, not correctly rounded; %g never switches to exponent form;
+// %e prints at most 17 fractional digits); '#' has no effect on f/e/g.
 int base_vsnprintf(char *str, size_t size, const char *format, va_list args);
-
-// Simple snprintf implementation for base/
-// Supports: %d, %i, %u, %ld, %li, %lu, %lld, %lli, %llu, %zu, %x, %X, %lx, %lX, %llx, %llX, %p, %c, %s, %f, %g, %.Nf, %%
-// Returns number of characters written (not including null terminator)
 int base_snprintf(char *str, size_t size, const char *format, ...);
 #ifdef __cplusplus
 }

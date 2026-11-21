@@ -13,6 +13,7 @@
 #include <base/numconv.h>
 #include <base/assert.h>
 #include <test_base.h>
+#include <test_numconv_cases.h>
 
 // Define hashtable and vector types for tests
 #define MapIntString_HASH(key) ((size_t)(key))
@@ -719,8 +720,50 @@ static void check_snprintf(const char *fmt, double val, const char *expected, co
     }
 }
 
+// Check base_vsnprintf(fmt, ...) against `expected` with a large buffer, with
+// (NULL, 0), and with every truncating size: the return value must always be
+// the full length, the output a NUL-terminated prefix, and nothing written
+// past `size`.
+static void check_fmt(const char *expected, const char *fmt, ...) {
+    va_list ap, a;
+    va_start(ap, fmt);
+    int len = 0;
+    while (expected[len]) len++;
+    char buf[64];
+    for (int size = -1; size <= len + 1; size++) {
+        for (int i = 0; i < (int)sizeof(buf); i++) buf[i] = '#';
+        va_copy(a, ap);
+        int n = size < 0 ? base_vsnprintf(NULL, 0, fmt, a)
+                         : base_vsnprintf(buf, (size_t)size, fmt, a);
+        va_end(a);
+        int keep = size <= 0 ? 0 : (len < size ? len : size - 1);
+        bool ok = n == len && (size <= 0 || buf[keep] == '\0');
+        for (int i = 0; i < keep; i++) if (buf[i] != expected[i]) ok = false;
+        for (int i = size < 0 ? 0 : size; i < (int)sizeof(buf); i++) if (buf[i] != '#') ok = false;
+        if (!ok) {
+            println(str_lit("FAIL: base_vsnprintf fmt='{}' size={} returned {} expected {} '{}'"),
+                    str_from_cstr_view((char*)fmt), size, n, len,
+                    str_from_cstr_view((char*)expected));
+            assert(0);
+        }
+    }
+    va_end(ap);
+}
+
 void test_numconv(void) {
     println(str_lit("## Testing numconv (base_snprintf %f / %e / %g)..."));
+
+    // Flags, width, precision, length modifiers, truncation and (NULL, 0)
+    // measuring; the expected strings are checked against libc by
+    // test_numconv_libc.c.
+#define X(expected, ...) check_fmt(expected, __VA_ARGS__);
+    NUMCONV_CASES(X)
+#undef X
+    {
+        volatile double zero = 0.0;
+        check_fmt("inf", "%f", 1.0 / zero);
+        check_fmt("[  -inf]", "[%6g]", -1.0 / zero);
+    }
 
     // %f sanity
     check_snprintf("%.2f", 1.5, "1.50", "%f");

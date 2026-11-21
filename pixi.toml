@@ -109,6 +109,10 @@ clang wasm/test_wasi_adapter.c wasi_adapter.o host_platform_linux.o -o test_wasi
 ./test_wasi_adapter_linux
 """, description = "Build and run the WASI adapter unit test (wasm->native lift host shim, Linux)" }
 
+# Differential test of base_vsnprintf against the host libc's vsnprintf. Built
+# with libc (only base/numconv.c comes from corec).
+test_numconv_libc = { cmd = "clang -I . test_numconv_libc.c base/numconv.c -o test_numconv_libc_linux && ./test_numconv_libc_linux", description = "Compare base_vsnprintf with the host libc vsnprintf (Linux)" }
+
 [feature.linux.target.linux-64.dependencies]
 clang = ">=20.1.4,<21"
 
@@ -158,6 +162,10 @@ clang -c platform/platform_macos.c -o host_platform_macos.o \
 clang wasm/test_wasi_adapter.c wasi_adapter.o host_platform_macos.o -o test_wasi_adapter_macos && \
 ./test_wasi_adapter_macos
 """, description = "Build and run the WASI adapter unit test (wasm->native lift host shim, macOS)" }
+
+# Differential test of base_vsnprintf against the host libc's vsnprintf. Built
+# with libc (only base/numconv.c comes from corec).
+test_numconv_libc = { cmd = "clang -I . test_numconv_libc.c base/numconv.c -o test_numconv_libc_macos && ./test_numconv_libc_macos", description = "Compare base_vsnprintf with the host libc vsnprintf (macOS)" }
 
 #=============================================================================
 # Windows

@@ -161,218 +161,203 @@ size_t uint64_to_hex_str(uint64_t val, char* buf, int uppercase) {
 }
 
 // vsnprintf/snprintf implementations (only for nostdlib builds)
-int base_vsnprintf(char *str, size_t size, const char *format, va_list args) {
-    if (size == 0) return 0;
 
-    size_t pos = 0;
-    const char* p = format;
-    char temp_buf[32];
+// Output sink: counts every character, stores only those that fit (leaving
+// room for the terminating NUL), as C's vsnprintf requires.
+typedef struct {
+    char *s;
+    size_t size;
+    size_t n;
+} fmt_out;
 
-    while (*p && pos < size - 1) {
-        if (*p == '%' && *(p + 1)) {
-            p++;
-
-            // Check for length modifiers: l, ll, z
-            int is_long = 0;
-            int is_long_long = 0;
-            int is_size_t = 0;
-            
-            if (*p == 'l') {
-                p++;
-                is_long = 1;
-                if (*p == 'l') {
-                    p++;
-                    is_long_long = 1;
-                    is_long = 0;
-                }
-            } else if (*p == 'z') {
-                p++;
-                is_size_t = 1;
-            }
-
-            // Check for precision specifier (e.g., %.2f, %.*s)
-            int precision = -1;
-            if (*p == '.') {
-                p++;
-                if (*p == '*') {
-                    // %.*X form: precision read from a preceding int arg.
-                    precision = va_arg(args, int);
-                    if (precision < 0) precision = 0;
-                    p++;
-                } else {
-                    precision = 0;
-                    while (*p >= '0' && *p <= '9') {
-                        precision = precision * 10 + (*p - '0');
-                        p++;
-                    }
-                }
-            }
-
-            switch (*p) {
-                case 'd':
-                case 'i': {
-                    if (is_long_long) {
-                        int64_t val = va_arg(args, int64_t);
-                        size_t len = int64_to_str(val, temp_buf);
-                        size_t copy_len = (pos + len < size - 1) ? len : (size - 1 - pos);
-                        for (size_t i = 0; i < copy_len; i++) {
-                            str[pos++] = temp_buf[i];
-                        }
-                    } else if (is_long) {
-                        long val = va_arg(args, long);
-                        size_t len = int64_to_str((int64_t)val, temp_buf);
-                        size_t copy_len = (pos + len < size - 1) ? len : (size - 1 - pos);
-                        for (size_t i = 0; i < copy_len; i++) {
-                            str[pos++] = temp_buf[i];
-                        }
-                    } else {
-                        int val = va_arg(args, int);
-                        size_t len = int_to_str(val, temp_buf);
-                        size_t copy_len = (pos + len < size - 1) ? len : (size - 1 - pos);
-                        for (size_t i = 0; i < copy_len; i++) {
-                            str[pos++] = temp_buf[i];
-                        }
-                    }
-                    break;
-                }
-                case 'u': {
-                    if (is_long_long) {
-                        uint64_t val = va_arg(args, uint64_t);
-                        size_t len = uint64_to_str(val, temp_buf);
-                        size_t copy_len = (pos + len < size - 1) ? len : (size - 1 - pos);
-                        for (size_t i = 0; i < copy_len; i++) {
-                            str[pos++] = temp_buf[i];
-                        }
-                    } else if (is_long || is_size_t) {
-                        unsigned long val = va_arg(args, unsigned long);
-                        size_t len = uint64_to_str((uint64_t)val, temp_buf);
-                        size_t copy_len = (pos + len < size - 1) ? len : (size - 1 - pos);
-                        for (size_t i = 0; i < copy_len; i++) {
-                            str[pos++] = temp_buf[i];
-                        }
-                    } else {
-                        unsigned int val = va_arg(args, unsigned int);
-                        size_t len = uint64_to_str((uint64_t)val, temp_buf);
-                        size_t copy_len = (pos + len < size - 1) ? len : (size - 1 - pos);
-                        for (size_t i = 0; i < copy_len; i++) {
-                            str[pos++] = temp_buf[i];
-                        }
-                    }
-                    break;
-                }
-                case 'x':
-                case 'X': {
-                    if (is_long_long) {
-                        uint64_t val = va_arg(args, uint64_t);
-                        size_t len = uint64_to_hex_str(val, temp_buf, *p == 'X');
-                        size_t copy_len = (pos + len < size - 1) ? len : (size - 1 - pos);
-                        for (size_t i = 0; i < copy_len; i++) {
-                            str[pos++] = temp_buf[i];
-                        }
-                    } else if (is_long || is_size_t) {
-                        unsigned long val = va_arg(args, unsigned long);
-                        size_t len = uint64_to_hex_str((uint64_t)val, temp_buf, *p == 'X');
-                        size_t copy_len = (pos + len < size - 1) ? len : (size - 1 - pos);
-                        for (size_t i = 0; i < copy_len; i++) {
-                            str[pos++] = temp_buf[i];
-                        }
-                    } else {
-                        unsigned int val = va_arg(args, unsigned int);
-                        size_t len = uint64_to_hex_str(val, temp_buf, *p == 'X');
-                        size_t copy_len = (pos + len < size - 1) ? len : (size - 1 - pos);
-                        for (size_t i = 0; i < copy_len; i++) {
-                            str[pos++] = temp_buf[i];
-                        }
-                    }
-                    break;
-                }
-                case 'p': {
-                    void* ptr = va_arg(args, void*);
-                    if (pos < size - 2) {
-                        str[pos++] = '0';
-                        str[pos++] = 'x';
-                    }
-                    size_t len = uint64_to_hex_str((uint64_t)(uintptr_t)ptr, temp_buf, 0);
-                    size_t copy_len = (pos + len < size - 1) ? len : (size - 1 - pos);
-                    for (size_t i = 0; i < copy_len; i++) {
-                        str[pos++] = temp_buf[i];
-                    }
-                    break;
-                }
-                case 'f': {
-                    double val = va_arg(args, double);
-                    if (precision < 0) precision = 6;
-                    size_t len = double_to_str(val, temp_buf, precision);
-                    size_t copy_len = (pos + len < size - 1) ? len : (size - 1 - pos);
-                    for (size_t i = 0; i < copy_len; i++) {
-                        str[pos++] = temp_buf[i];
-                    }
-                    break;
-                }
-                case 'g': {
-                    double val = va_arg(args, double);
-                    size_t len = double_to_str_g(val, temp_buf, precision);
-                    size_t copy_len = (pos + len < size - 1) ? len : (size - 1 - pos);
-                    for (size_t i = 0; i < copy_len; i++) {
-                        str[pos++] = temp_buf[i];
-                    }
-                    break;
-                }
-                case 'e': {
-                    double val = va_arg(args, double);
-                    if (precision < 0) precision = 6;
-                    size_t len = double_to_str_e(val, temp_buf, precision);
-                    size_t copy_len = (pos + len < size - 1) ? len : (size - 1 - pos);
-                    for (size_t i = 0; i < copy_len; i++) {
-                        str[pos++] = temp_buf[i];
-                    }
-                    break;
-                }
-                case 's': {
-                    char* s = va_arg(args, char*);
-                    if (s == NULL) s = "(null)";
-                    if (precision >= 0) {
-                        // %.*s / %.Ns: emit at most `precision` chars (do not
-                        // require NUL termination — needed for slice-style
-                        // strings like the corec `string` { ptr, size } view).
-                        int n = 0;
-                        while (n < precision && pos < size - 1) {
-                            str[pos++] = s[n++];
-                        }
-                    } else {
-                        while (*s && pos < size - 1) {
-                            str[pos++] = *s++;
-                        }
-                    }
-                    break;
-                }
-                case 'c': {
-                    char c = (char)va_arg(args, int);
-                    if (pos < size - 1) {
-                        str[pos++] = c;
-                    }
-                    break;
-                }
-                case '%': {
-                    str[pos++] = '%';
-                    break;
-                }
-                default:
-                    // Unknown format specifier, just skip it
-                    break;
-            }
-            p++;
-        } else {
-            str[pos++] = *p++;
-        }
-    }
-
-    str[pos] = '\0';
-    return (int)pos;
+static void out_ch(fmt_out *o, char c) {
+    if (o->n + 1 < o->size) o->s[o->n] = c;
+    o->n++;
 }
 
-// Simple snprintf implementation for base/
-// Supports: %d, %u, %f, %.Nf, %s
+static void out_rep(fmt_out *o, char c, int k) {
+    while (k-- > 0) out_ch(o, c);
+}
+
+enum { F_LEFT = 1, F_ZERO = 2, F_PLUS = 4, F_SPACE = 8, F_ALT = 16 };
+
+int base_vsnprintf(char *str, size_t size, const char *format, va_list args) {
+    fmt_out o;
+    o.s = str;
+    o.size = size;
+    o.n = 0;
+    const char *p = format;
+    char buf[64];
+
+    while (*p) {
+        if (*p != '%' || !p[1]) {
+            out_ch(&o, *p++);
+            continue;
+        }
+        p++;
+
+        // Flags.
+        int flags = 0;
+        for (;; p++) {
+            if (*p == '-') flags |= F_LEFT;
+            else if (*p == '0') flags |= F_ZERO;
+            else if (*p == '+') flags |= F_PLUS;
+            else if (*p == ' ') flags |= F_SPACE;
+            else if (*p == '#') flags |= F_ALT;
+            else break;
+        }
+
+        // Field width; a negative `*` width means left-justify.
+        int width = 0;
+        if (*p == '*') {
+            p++;
+            width = va_arg(args, int);
+            if (width < 0) { flags |= F_LEFT; width = -width; }
+        } else {
+            while (*p >= '0' && *p <= '9') width = width * 10 + (*p++ - '0');
+        }
+
+        // Precision; a negative `*` precision is taken as omitted (-1).
+        int prec = -1;
+        if (*p == '.') {
+            p++;
+            if (*p == '*') {
+                p++;
+                prec = va_arg(args, int);
+                if (prec < 0) prec = -1;
+            } else {
+                prec = 0;
+                while (*p >= '0' && *p <= '9') prec = prec * 10 + (*p++ - '0');
+            }
+        }
+
+        // Length modifier: 1=hh 2=h 3=l 4=ll/j 5=z/t (intmax_t is 64-bit and
+        // ptrdiff_t is size_t-sized on every target corec supports).
+        int lmod = 0;
+        if (*p == 'h') { p++; lmod = 2; if (*p == 'h') { p++; lmod = 1; } }
+        else if (*p == 'l') { p++; lmod = 3; if (*p == 'l') { p++; lmod = 4; } }
+        else if (*p == 'j') { p++; lmod = 4; }
+        else if (*p == 'z' || *p == 't') { p++; lmod = 5; }
+
+        char c = *p;
+        if (!c) break;
+        p++;
+
+        if (flags & F_LEFT) flags &= ~F_ZERO;
+        const char *pre = "";  // sign or radix prefix, emitted before zero padding
+        int zeros = 0;         // zeros required by an integer precision
+        char *body = buf;
+        size_t blen = 0;
+
+        switch (c) {
+            case 'd': case 'i': case 'u': case 'o': case 'x': case 'X': case 'p': {
+                // Read the argument with its promoted type, then truncate
+                // (unsigned) or sign-extend (d/i) it to the modifier's width.
+                uint64_t v;
+                int bits = 64;
+                if (c == 'p') {
+                    v = (uint64_t)(uintptr_t)va_arg(args, void*);
+                } else if (lmod == 4) {
+                    v = va_arg(args, unsigned long long);
+                } else if (lmod == 3) {
+                    v = va_arg(args, unsigned long);
+                    bits = (int)sizeof(long) * 8;
+                } else if (lmod == 5) {
+                    v = va_arg(args, size_t);
+                    bits = (int)sizeof(size_t) * 8;
+                } else {
+                    v = va_arg(args, unsigned int);
+                    bits = lmod == 1 ? 8 : lmod == 2 ? 16 : (int)sizeof(int) * 8;
+                }
+                int is_signed = c == 'd' || c == 'i';
+                if (bits < 64) {
+                    uint64_t mask = ((uint64_t)1 << bits) - 1;
+                    v &= mask;
+                    if (is_signed && (v >> (bits - 1))) v |= ~mask;
+                }
+                if (is_signed) {
+                    if ((int64_t)v < 0) { v = 0 - v; pre = "-"; }
+                    else if (flags & F_PLUS) pre = "+";
+                    else if (flags & F_SPACE) pre = " ";
+                }
+                if (v && (flags & F_ALT) && c == 'x') pre = "0x";
+                if (v && (flags & F_ALT) && c == 'X') pre = "0X";
+                if (c == 'p') pre = "0x";
+
+                unsigned base = c == 'o' ? 8 : (c == 'u' || is_signed) ? 10 : 16;
+                const char *digits = c == 'X' ? "0123456789ABCDEF" : "0123456789abcdef";
+                char *end = buf + sizeof(buf);
+                body = end;
+                while (v) { *--body = digits[v % base]; v /= base; }
+                // A zero value prints "0", except with an explicit precision of 0
+                // (but "%#.0o" still prints "0").
+                if (body == end && (prec != 0 || ((flags & F_ALT) && c == 'o'))) *--body = '0';
+                if ((flags & F_ALT) && c == 'o' && *body != '0') *--body = '0';
+                blen = (size_t)(end - body);
+                if (prec >= 0) {
+                    flags &= ~F_ZERO;
+                    if ((size_t)prec > blen) zeros = prec - (int)blen;
+                }
+                break;
+            }
+            case 'f': case 'e': case 'g': {
+                double val = va_arg(args, double);
+                // Take the sign from the sign bit so that -0.0 prints as "-0".
+                union { double d; uint64_t u; } fb;
+                fb.d = val;
+                if (fb.u >> 63) { val = -val; pre = "-"; }
+                else if (flags & F_PLUS) pre = "+";
+                else if (flags & F_SPACE) pre = " ";
+                if (prec > 40) prec = 40;  // keep within buf
+                if ((fb.u >> 52 & 0x7ff) == 0x7ff) {
+                    body = (fb.u << 12) ? "nan" : "inf";
+                    blen = 3;
+                    flags &= ~F_ZERO;
+                } else if (c == 'g') blen = double_to_str_g(val, buf, prec);
+                else if (c == 'e') blen = double_to_str_e(val, buf, prec);
+                else blen = double_to_str(val, buf, prec);
+                break;
+            }
+            case 's': {
+                body = va_arg(args, char*);
+                if (body == NULL) body = "(null)";
+                // With a precision, read at most `prec` chars: the string need
+                // not be NUL-terminated (e.g. corec `string` slices via %.*s).
+                while ((prec < 0 || blen < (size_t)prec) && body[blen]) blen++;
+                flags &= ~F_ZERO;
+                break;
+            }
+            case 'c':
+                buf[0] = (char)va_arg(args, int);
+                blen = 1;
+                flags &= ~F_ZERO;
+                break;
+            case '%':
+                buf[0] = '%';
+                blen = 1;
+                width = 0;
+                break;
+            default:
+                // Unknown conversion: skip it.
+                continue;
+        }
+
+        // [spaces][pre][zero padding][precision zeros][body][spaces]
+        int plen = 0;
+        while (pre[plen]) plen++;
+        int pad = width - plen - zeros - (int)blen;
+        if (!(flags & (F_LEFT | F_ZERO))) out_rep(&o, ' ', pad);
+        for (int i = 0; i < plen; i++) out_ch(&o, pre[i]);
+        if (flags & F_ZERO) out_rep(&o, '0', pad);
+        out_rep(&o, '0', zeros);
+        for (size_t i = 0; i < blen; i++) out_ch(&o, body[i]);
+        if (flags & F_LEFT) out_rep(&o, ' ', pad);
+    }
+
+    if (size > 0) str[o.n < size ? o.n : size - 1] = '\0';
+    return (int)o.n;
+}
+
 int base_snprintf(char *str, size_t size, const char *format, ...) {
     va_list args;
     va_start(args, format);
