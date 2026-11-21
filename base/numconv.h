@@ -23,12 +23,11 @@ size_t int64_to_str(int64_t val, char* buf);
 // Returns length of string written (not including null terminator)
 size_t int_to_str(int val, char* buf);
 
-// Convert double to string with specified precision ("%.<precision>f").
-// The integer part is exact; the fractional digits are truncated, not rounded.
-// Returns length of string written (not including null terminator)
-// precision: number of decimal places (-1 for default of 6)
+// Convert double to string like "%.<precision>f" (precision -1 means 6; it
+// is capped at 40). Writes at most 350 bytes (DBL_MAX has 309 integer digits),
+// so a 360-byte buffer is always enough. Returns the length written (no NUL).
 size_t double_to_str(double val, char* buf, int precision);
-// "%.<precision>e" (precision clamped to 17).
+// Like "%.<precision>e" (precision -1 means 6; it is capped at 40).
 size_t double_to_str_e(double val, char* buf, int precision);
 
 // vsnprintf/snprintf for base/ (used by the nostdlib C library layer).
@@ -42,14 +41,18 @@ size_t double_to_str_e(double val, char* buf, int precision);
 //   conversions: d i u o x X p c s f F e E g G %
 // Unsupported conversions that take an argument (%n, %a, %A, and the L
 // modifier on f/e/g) consume it and print nothing; %n stores nothing.
-// Float limitations:
-//   - %f truncates the fractional digits instead of rounding them, and its
-//     precision is capped at 40; the integer part is always exact.
-//   - %e/%g compute the digits in double arithmetic, so they are correctly
-//     rounded only to about 15 significant digits; precision is capped at 17
-//     for %e and at 18 significant digits for %g; exact decimal ties round
-//     up (C rounds them to even, e.g. "%.3e" of 12345 is 1.235e+04, not
-//     1.234e+04).
+// Float limitations (exact decimal conversion is not implemented):
+//   - %f: the integer part is exact. The fraction is rounded once in double
+//     arithmetic (half up on the binary value; C rounds exact binary ties
+//     such as 0.125 -> "0.12" to even) to at most 17 digits; further digits
+//     print as '0'. Precision is capped at 40. Fraction digits past about 15
+//     significant digits of the value are not exact.
+//   - %e/%g: the digits come from repeated scaling by 10 and are reliable to
+//     about 14 significant digits (at 15, about 1 value in 10 differs in the
+//     last digit); digits past the 18th print as '0'. A value very close to
+//     a rounding tie (within about 1e-15 relative) can round either way at
+//     any precision (e.g. "%.2e" of 8435000.0 gives 8.43e+06, "%g" of
+//     999999.5 gives 999999). %e precision is capped at 40, %g at 340.
 // Returns -1 if the length would exceed INT_MAX.
 int base_vsnprintf(char *str, size_t size, const char *format, va_list args);
 int base_snprintf(char *str, size_t size, const char *format, ...);

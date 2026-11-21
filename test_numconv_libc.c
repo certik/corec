@@ -146,11 +146,11 @@ static void sweep_ints(void) {
 static void sweep_other(void) {
     static const char *strs[] = {"", "a", "hello", "hello, world"};
     static const char chars[] = {'x', ' ', '%'};
-    // base %f truncates its fractional digits (C rounds), and base %e/%g round
-    // exact decimal ties up (C rounds them to even), so only use values and
-    // precisions where neither matters.
+    // base rounds in double arithmetic (half up; C rounds exact ties to even),
+    // so avoid values at or near a rounding tie for the precisions used.
     static const double dbls[] = {0.0, -0.0, 0.5, -0.5, 1.5, -2.25, 100.75, 12345.0,
-                                  123456789.0, 0.000123456, 1e-10, 1e19, -1e20, 1e300};
+                                  123456789.0, 0.000123456, 1e-10, 1e19, -1e20, 1e300,
+                                  3.14159, 0.063, 0.0542, 2.0 / 3.0, -1234.5678, 0.9996};
     static const char *dfmts[] = {"f", ".2f", ".3f", "F", "e", ".0e", ".2e", "E",
                                   "g", ".0g", ".1g", ".3g", "G"};
     char fmt[64];
@@ -170,7 +170,9 @@ static void sweep_other(void) {
         for (size_t fi = 0; fi < sizeof(dfmts) / sizeof(dfmts[0]); fi++) {
             const char *d = dfmts[fi];
             char prec[8] = "";
-            if (d[0] == '.') { prec[0] = '.'; prec[1] = d[1]; prec[2] = 0; d += 2; }
+            size_t k = 0;
+            while (d[0] == '.' || (d[0] >= '0' && d[0] <= '9')) prec[k++] = *d++;
+            prec[k] = 0;
             for (size_t di = 0; di < sizeof(dbls) / sizeof(dbls[0]); di++)
                 check(NULL, mkfmt(fmt, fl, widths[wi], prec, "", d[0]), dbls[di]);
         }

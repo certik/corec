@@ -4,8 +4,10 @@
 // check base_snprintf against `expected`, and by test_numconv_libc.c (hosted)
 // to check that `expected` is what the host libc's snprintf produces.
 // Only list cases whose behavior C defines and that base_snprintf supports
-// exactly (see the limitations in base/numconv.h; e.g. use %f values whose
-// fractional digits are exact, so truncation and rounding agree).
+// exactly (see the limitations in base/numconv.h: no values near a rounding
+// tie, no digits past the ~15th significant one that depend on exactness).
+// glibc's "%#g" of 999999.5 is "1.e+06", which is wrong, so carries with '#'
+// are only checked against C in test_base.c.
 #define NUMCONV_CASES(X) \
     /* plain conversions */ \
     X("42", "%d", 42) \
@@ -133,4 +135,19 @@
     X("1E+06", "%G", 1e6) \
     X("1.5E-10", "%G", 1.5e-10) \
     X("1.500000", "%F", 1.5) \
-    X("[-2.500000E+00]", "[%-12E]", -2.5)
+    X("[-2.500000E+00]", "[%-12E]", -2.5) \
+    /* %f rounding, digits past 17/18 are zeros, %g style with P > 18 */ \
+    X("0.063", "%.3f", 0.063) \
+    X("0.054200", "%f", 0.0542) \
+    X("0.67", "%.2f", 2.0 / 3.0) \
+    X("1.000", "%.3f", 0.9996) \
+    X("10", "%.0f", 9.7) \
+    X("-3", "%.0f", -2.6) \
+    X("0.50000000000000000000", "%.20f", 0.5) \
+    X("10000000000000000000", "%.20g", 1e19) \
+    X("10000000000000000000.", "%#.20g", 1e19) \
+    X("1.0000000000000000000000000e+00", "%.25e", 1.0) \
+    X("1.00000e+07", "%#g", 9999999.0) \
+    X("[      -0.001]", "[%#12.3f]", -0.0005) \
+    X("0.25000000000000000", "%.17f", 0.25) \
+    X("100.00", "%.2f", 99.996)

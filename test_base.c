@@ -765,6 +765,11 @@ void test_numconv(void) {
         check_fmt("[  -inf]", "[%6g]", -1.0 / zero);
         check_fmt("[INF]", "[%E]", 1.0 / zero);
     }
+    // '#' with a %g carry into the next power of ten; glibc prints "1.e+06"
+    // for the tie 999999.5, so this is checked against C here, not glibc.
+    check_fmt("1.00000e+07", "%#g", 9999999.9);
+    check_fmt("1.00000e+06", "%#g", 999999.7);
+    check_fmt("0.13", "%.2f", 0.125);  // half up on the binary value (C: 0.12)
     {
         // Unsupported conversions still consume their argument, so the
         // following conversions stay aligned: %n (nothing is written through

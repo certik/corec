@@ -51,9 +51,9 @@ string uint_to_string(Arena *arena, uint64_t value) {
 }
 
 string double_to_string(Arena *arena, double value, int precision) {
-    // Up to 309 integer digits (DBL_MAX), '.', and at most 40 decimals.
+    // Up to 309 integer digits (DBL_MAX), '.', and at most 40 decimals
+    // (double_to_str caps the precision at 40).
     char buf[360];
-    if (precision > 40) precision = 40;
     size_t len = double_to_str(value, buf, precision);
     char *str = arena_new_array(arena, char, len);
     base_memcpy(str, buf, len);
