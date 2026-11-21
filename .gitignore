@@ -9,6 +9,8 @@ corec_test_macos
 corec_test_windows
 test_wasi_adapter_linux
 test_wasi_adapter_macos
+test_numconv_libc_linux
+test_numconv_libc_macos
 wasi_adapter_test.tmp
 
 # Test artifacts produced by test runs
