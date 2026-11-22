@@ -103,6 +103,17 @@ int main(void) {
     CHECK(strcmp((char *)(LM + rd32(ofs_arr + 1 * 4)), "a1")   == 0, "args_get argv[1]");
     CHECK(strcmp((char *)(LM + rd32(ofs_arr + 2 * 4)), "bb2")  == 0, "args_get argv[2]");
 
+    // --- clock_time_get: monotonic ns written to linmem[time_out] ---
+    const u32 t0off = 2400, t1off = 2408;
+    rc = clock_time_get(1, 1, t0off);
+    CHECK(rc == 0 && *(u64 *)(LM + t0off) != 0, "clock_time_get returns a nonzero time");
+    u64 t0 = *(u64 *)(LM + t0off), t1 = t0;
+    for (int i = 0; i < 100000000 && t1 == t0; i++) {
+        clock_time_get(1, 1, t1off);
+        t1 = *(u64 *)(LM + t1off);
+    }
+    CHECK(t1 > t0, "clock_time_get is monotonic and advances");
+
     // --- fd_write straight to the real stdout, through the adapter ---
     const u32 sbuf = 3000, siov = 3100, snw = 3200;
     const char *banner = "[wasi_adapter] stdout write via fd_write ok\n";

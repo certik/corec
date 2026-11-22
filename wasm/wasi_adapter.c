@@ -138,3 +138,11 @@ u32 environ_sizes_get(u32 out_count, u32 out_buf_size) {
 }
 
 u32 environ_get(u32 environ, u32 buf) { (void)environ; (void)buf; return 0; }
+
+// i32 clock_time_get(clock_id, precision, time_out): every clock id reads the
+// host monotonic clock (callers only time intervals); ns into linmem[time_out].
+u32 clock_time_get(u32 clock_id, u64 precision, u32 time_out) {
+    (void)clock_id; (void)precision;
+    *(u64 *)wasm_ptr(time_out) = platform_clock_ns();
+    return 0;
+}

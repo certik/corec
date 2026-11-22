@@ -87,6 +87,7 @@ void* memset(void* s, int c, size_t n) {
 #define SYS_DUP2 33
 #define SYS_EXIT 60
 #define SYS_FCNTL 72
+#define SYS_CLOCK_GETTIME 228
 #define SYS_OPENAT 257
 
 // AT_FDCWD: special value meaning "current working directory" for openat
@@ -151,6 +152,15 @@ uint32_t platform_fd_write(int fd, const ciovec_t* iovs, size_t iovs_len, size_t
 void platform_exit(int status) {
     syscall(SYS_EXIT, (long)status, 0, 0, 0, 0, 0);
     __builtin_unreachable();
+}
+
+struct linux_timespec { long tv_sec; long tv_nsec; };
+
+uint64_t platform_clock_ns(void) {
+    struct linux_timespec ts;
+    if (syscall(SYS_CLOCK_GETTIME, 1 /* CLOCK_MONOTONIC */, (long)&ts, 0, 0, 0, 0) != 0)
+        return 0;
+    return (uint64_t)ts.tv_sec * 1000000000u + (uint64_t)ts.tv_nsec;
 }
 
 // Initializes the heap using mmap. We reserve large chunk of virtual

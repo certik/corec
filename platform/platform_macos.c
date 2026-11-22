@@ -29,6 +29,7 @@ extern int fcntl(int fd, int cmd, ...);
 extern ssize_t readv(int fd, const struct iovec *iov, int iovcnt);
 extern off_t lseek(int fd, off_t offset, int whence);
 extern int munmap(void *addr, size_t len);
+extern uint64_t clock_gettime_nsec_np(int clock_id);
 
 // Protection and mapping flags (macOS-specific values)
 #define PROT_NONE  0x00
@@ -103,6 +104,10 @@ uint32_t platform_fd_write(int fd, const ciovec_t* iovs, size_t iovs_len, size_t
 
 void platform_exit(int status) {
     _exit(status);
+}
+
+uint64_t platform_clock_ns(void) {
+    return clock_gettime_nsec_np(8 /* CLOCK_UPTIME_RAW */);
 }
 
 void* platform_heap_base() {

@@ -147,6 +147,18 @@ static bool double_close(double a, double b, double tol) {
     return d <= tol;
 }
 
+void test_clock(void) {
+    print("## Testing platform_clock_ns...\n");
+    uint64_t t0 = platform_clock_ns();
+    assert(t0 != 0);
+    // Spin until the clock advances: it must be monotonic and actually tick.
+    uint64_t t1 = t0;
+    for (int i = 0; i < 100000000 && t1 == t0; i++) t1 = platform_clock_ns();
+    assert(t1 > t0);
+    uint64_t t2 = platform_clock_ns();
+    assert(t2 >= t1);
+}
+
 void test_math(void) {
     print("## Testing math functions...\n");
 
@@ -1515,6 +1527,7 @@ void test_base(void) {
     print("=== base tests ===\n");
 
     test_platform_heap();
+    test_clock();
     test_math();
     test_buddy();
     test_arena();

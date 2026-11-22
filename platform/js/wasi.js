@@ -6,7 +6,7 @@
 // `wasi_snapshot_preview1` imports listed below. Those imports are not
 // defined inside the `.wasm` — whoever loads the module must supply them.
 // `wasmtime` is one such runtime (in Rust, talks to the host OS). This
-// file is another: a pure-JS implementation of the same eleven imports, so
+// file is another: a pure-JS implementation of the same twelve imports, so
 // the same `corec_test.wasm` artifact can run unmodified in Node.js and
 // in any modern browser.
 //
@@ -16,6 +16,7 @@
 //   environ_sizes_get, environ_get,
 //   fd_write, fd_read, fd_close, fd_seek, fd_tell,
 //   path_open,
+//   clock_time_get,
 //   proc_exit
 //
 // What this file is responsible for:
@@ -208,6 +209,14 @@ export function makeWasi(io) {
             const r = io.fs.tell(fd);
             if (r === null || r === undefined) return ERRNO.BADF;
             writeU64(offset_ptr, r);
+            return ERRNO.SUCCESS;
+        },
+
+        clock_time_get(_clock_id, _precision, time_ptr) {
+            // Every clock id reads a monotonic clock in ns (callers only time
+            // intervals). performance.now() is in ms with sub-ms precision.
+            const ns = BigInt(Math.round(performance.now() * 1e6));
+            writeU64(time_ptr, ns);
             return ERRNO.SUCCESS;
         },
 
