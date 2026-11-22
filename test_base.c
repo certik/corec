@@ -865,6 +865,33 @@ void test_io(void) {
     println(str_lit("I/O tests passed"));
 }
 
+void test_write_all_empty(void) {
+    println(str_lit("## Testing write_all with empty iovecs..."));
+    const char* test_file = "test_write_all_empty.txt";
+    platform_fd_t fd = platform_path_open(test_file, base_strlen(test_file),
+        PLATFORM_RIGHTS_WRITE, PLATFORM_O_CREAT | PLATFORM_O_TRUNC);
+    assert(fd >= 0);
+    // Nothing at all, a single empty buffer, and empty buffers around data:
+    // each must return instead of retrying the 0-byte write forever.
+    assert(write_all(fd, NULL, 0) == 0);
+    ciovec_t empty = {.buf = "", .buf_len = 0};
+    assert(write_all(fd, &empty, 1) == 0);
+    ciovec_t mixed[4] = {
+        {.buf = "", .buf_len = 0}, {.buf = "ab", .buf_len = 2},
+        {.buf = "", .buf_len = 0}, {.buf = "c", .buf_len = 1},
+    };
+    assert(write_all(fd, mixed, 4) == 0);
+    assert(platform_fd_close(fd) == 0);
+    fd = platform_path_open(test_file, base_strlen(test_file), PLATFORM_RIGHTS_READ, 0);
+    assert(fd >= 0);
+    char buf[16] = {0};
+    iovec_t riov = {.iov_base = buf, .iov_len = 15};
+    size_t nread = 0;
+    assert(platform_fd_read(fd, &riov, 1, &nread) == 0);
+    assert(nread == 3 && base_memcmp(buf, "abc", 3) == 0);
+    assert(platform_fd_close(fd) == 0);
+}
+
 void test_file_flags(void) {
     println(str_lit("## Testing file open flags..."));
 
@@ -1535,6 +1562,7 @@ void test_base(void) {
     test_format();
     test_numconv();
     test_io();
+    test_write_all_empty();
     test_file_flags();
     test_hashtable_int_string();
     test_hashtable_string_int();

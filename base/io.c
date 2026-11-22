@@ -12,9 +12,20 @@ uint32_t write_all(int fd, ciovec_t* iovs, size_t iovs_len) {
     uint32_t ret;
 
     for (i = 0; i < iovs_len; ) {
+        // Skip empty iovecs: a write of only empty buffers returns 0 bytes,
+        // which below would look like no progress.
+        if (iovs[i].buf_len == 0) {
+            i++;
+            continue;
+        }
         ret = platform_fd_write(fd, &iovs[i], iovs_len - i, &nwritten);
         if (ret != 0) {
             return ret; // Return error code
+        }
+        // At least one byte was requested; a 0-byte write makes no progress
+        // and retrying would spin forever.
+        if (nwritten == 0) {
+            return 5; // EIO
         }
 
         // Advance through the iovecs based on how much was written
