@@ -1,5 +1,12 @@
 #include <base/mem.h>
 
+// base_memcpy, base_memmove and base_memset: word-at-a-time loops, see
+// base/mem_word.h.
+#define BASE_MEM_WORD_MEMCPY  base_memcpy
+#define BASE_MEM_WORD_MEMMOVE base_memmove
+#define BASE_MEM_WORD_MEMSET  base_memset
+#include <base/mem_word.h>
+
 size_t base_strlen(const char* str) {
     const char* s;
     for (s = str; *s; ++s);
@@ -20,38 +27,6 @@ int base_strcmp(const char* s1, const char* s2) {
     return *(const unsigned char*)s1 - *(const unsigned char*)s2;
 }
 
-void* base_memcpy(void* dest, const void* src, size_t n) {
-    unsigned char* d = (unsigned char*)dest;
-    const unsigned char* s = (const unsigned char*)src;
-    for (size_t i = 0; i < n; i++) {
-        d[i] = s[i];
-    }
-    return dest;
-}
-
-void* base_memmove(void* dest, const void* src, size_t n) {
-    unsigned char* d = (unsigned char*)dest;
-    const unsigned char* s = (const unsigned char*)src;
-
-    if (d == s || n == 0) {
-        return dest;
-    }
-
-    // Copy forward when regions do not overlap or destination is before source
-    if (d < s || d >= s + n) {
-        for (size_t i = 0; i < n; i++) {
-            d[i] = s[i];
-        }
-        return dest;
-    }
-
-    // Copy backward to handle overlapping regions safely
-    for (size_t i = n; i != 0; i--) {
-        d[i - 1] = s[i - 1];
-    }
-    return dest;
-}
-
 int base_memcmp(const void* s1, const void* s2, size_t n) {
     const unsigned char* p1 = (const unsigned char*)s1;
     const unsigned char* p2 = (const unsigned char*)s2;
@@ -61,14 +36,6 @@ int base_memcmp(const void* s1, const void* s2, size_t n) {
         }
     }
     return 0;
-}
-
-void* base_memset(void* s, int c, size_t n) {
-    unsigned char* p = (unsigned char*)s;
-    for (size_t i = 0; i < n; i++) {
-        p[i] = (unsigned char)c;
-    }
-    return s;
 }
 
 void* base_memchr(const void* s, int c, size_t n) {

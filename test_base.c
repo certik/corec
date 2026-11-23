@@ -1085,6 +1085,158 @@ void test_string(void) {
     arena_destroy(arena);
 }
 
+// Exhaustive small-size tests of base_memcpy / base_memmove / base_memset
+// (word-at-a-time, base/mem_word.h) against a byte-by-byte reference: every
+// length 0..100 plus a few larger ones, every source and destination offset
+// 0..15 from a word-aligned base, guard bytes on both sides.
+#define MEM_TEST_OFFSETS 16
+#define MEM_TEST_GUARD 16
+#define MEM_TEST_MAX_LEN 4099
+#define MEM_TEST_BUF_LEN (MEM_TEST_GUARD + MEM_TEST_OFFSETS + MEM_TEST_MAX_LEN + MEM_TEST_GUARD)
+
+// uint64_t storage makes the buffers word aligned on every target.
+static uint64_t mem_test_src_storage[(MEM_TEST_BUF_LEN + 7) / 8];
+static uint64_t mem_test_dst_storage[(MEM_TEST_BUF_LEN + 7) / 8];
+static uint64_t mem_test_ref_storage[(MEM_TEST_BUF_LEN + 7) / 8];
+
+static const size_t mem_test_big_lens[] = {255, 256, 257, 1000, 4096, MEM_TEST_MAX_LEN};
+
+typedef void* (*mem_test_copy_fn)(void*, const void*, size_t);
+typedef void* (*mem_test_set_fn)(void*, int, size_t);
+
+static void mem_test_fill(unsigned char* buf, unsigned seed) {
+    // Covers bytes >= 0x80; no two neighbouring bytes are equal.
+    for (size_t i = 0; i < MEM_TEST_BUF_LEN; i++) {
+        buf[i] = (unsigned char)(i * 37 + seed);
+    }
+}
+
+static void mem_test_check(const unsigned char* got, const unsigned char* ref) {
+    for (size_t i = 0; i < MEM_TEST_BUF_LEN; i++) {
+        assert(got[i] == ref[i]);
+    }
+}
+
+static void mem_test_copy_case(mem_test_copy_fn fn, size_t len, size_t so, size_t doff) {
+    unsigned char* src = (unsigned char*)mem_test_src_storage;
+    unsigned char* dst = (unsigned char*)mem_test_dst_storage;
+    unsigned char* ref = (unsigned char*)mem_test_ref_storage;
+    mem_test_fill(dst, 101);
+    mem_test_fill(ref, 101);
+    for (size_t i = 0; i < len; i++) {
+        ref[MEM_TEST_GUARD + doff + i] = src[MEM_TEST_GUARD + so + i];
+    }
+    void* r = fn(dst + MEM_TEST_GUARD + doff, src + MEM_TEST_GUARD + so, len);
+    assert(r == dst + MEM_TEST_GUARD + doff);
+    mem_test_check(dst, ref);
+}
+
+// Non-overlapping copy (memcpy, and memmove between distinct buffers).
+static void mem_test_copy(mem_test_copy_fn fn) {
+    mem_test_fill((unsigned char*)mem_test_src_storage, 3);
+    for (size_t so = 0; so < MEM_TEST_OFFSETS; so++) {
+        for (size_t doff = 0; doff < MEM_TEST_OFFSETS; doff++) {
+            for (size_t len = 0; len <= 100; len++) {
+                mem_test_copy_case(fn, len, so, doff);
+            }
+            for (size_t k = 0; k < array_size(mem_test_big_lens); k++) {
+                mem_test_copy_case(fn, mem_test_big_lens[k], so, doff);
+            }
+        }
+    }
+}
+
+static void mem_test_move_case(size_t len, size_t so, size_t doff) {
+    unsigned char* buf = (unsigned char*)mem_test_dst_storage;
+    unsigned char* ref = (unsigned char*)mem_test_ref_storage;
+    unsigned char* tmp = (unsigned char*)mem_test_src_storage;
+    mem_test_fill(buf, 7);
+    mem_test_fill(ref, 7);
+    for (size_t i = 0; i < len; i++) {
+        tmp[i] = ref[MEM_TEST_GUARD + so + i];
+    }
+    for (size_t i = 0; i < len; i++) {
+        ref[MEM_TEST_GUARD + doff + i] = tmp[i];
+    }
+    void* r = base_memmove(buf + MEM_TEST_GUARD + doff, buf + MEM_TEST_GUARD + so, len);
+    assert(r == buf + MEM_TEST_GUARD + doff);
+    mem_test_check(buf, ref);
+}
+
+// Overlapping memmove within one buffer: dest below src (forward copy) and
+// dest above src (backward copy), including equal pointers.
+static void mem_test_move_overlap(void) {
+    for (size_t so = 0; so < MEM_TEST_OFFSETS; so++) {
+        for (size_t doff = 0; doff < MEM_TEST_OFFSETS; doff++) {
+            for (size_t len = 0; len <= 100; len++) {
+                mem_test_move_case(len, so, doff);
+            }
+            for (size_t k = 0; k < array_size(mem_test_big_lens); k++) {
+                mem_test_move_case(mem_test_big_lens[k], so, doff);
+            }
+        }
+    }
+    // Overlaps at a distance of whole words (the word path in both
+    // directions), not just 0..15 bytes.
+    for (size_t dist = 16; dist <= 64; dist += 8) {
+        for (size_t len = 0; len <= 100; len++) {
+            mem_test_move_case(len, 0, dist);
+            mem_test_move_case(len, dist, 0);
+            mem_test_move_case(len, 3, dist + 3);
+            mem_test_move_case(len, dist + 5, 5);
+        }
+    }
+}
+
+static void mem_test_set_case(mem_test_set_fn fn, int c, size_t len, size_t doff) {
+    unsigned char* dst = (unsigned char*)mem_test_dst_storage;
+    unsigned char* ref = (unsigned char*)mem_test_ref_storage;
+    mem_test_fill(dst, 11);
+    mem_test_fill(ref, 11);
+    for (size_t i = 0; i < len; i++) {
+        ref[MEM_TEST_GUARD + doff + i] = (unsigned char)c;
+    }
+    void* r = fn(dst + MEM_TEST_GUARD + doff, c, len);
+    assert(r == dst + MEM_TEST_GUARD + doff);
+    mem_test_check(dst, ref);
+}
+
+static void mem_test_set(mem_test_set_fn fn) {
+    // 0x180 and -1: only the low byte (0x80, 0xFF) is stored.
+    static const int values[] = {0, 1, 0x5A, 0x7F, 0x80, 0xFE, 0xFF, 0x180, -1};
+    for (size_t v = 0; v < array_size(values); v++) {
+        for (size_t doff = 0; doff < MEM_TEST_OFFSETS; doff++) {
+            for (size_t len = 0; len <= 100; len++) {
+                mem_test_set_case(fn, values[v], len, doff);
+            }
+            for (size_t k = 0; k < array_size(mem_test_big_lens); k++) {
+                mem_test_set_case(fn, values[v], mem_test_big_lens[k], doff);
+            }
+        }
+    }
+}
+
+#if defined(__linux__) && !defined(__TINYC__) && !defined(COREC_STDLIB_PROVIDES_MEM)
+// The weak memcpy/memset fallbacks of platform/platform_linux.c.
+void* memcpy(void* dest, const void* src, size_t n);
+void* memset(void* s, int c, size_t n);
+#define MEM_TEST_PLATFORM_MEM 1
+#endif
+
+void test_mem(void) {
+    print("## Testing memcpy / memmove / memset...\n");
+    mem_test_copy(base_memcpy);
+    mem_test_copy(base_memmove);
+    mem_test_move_overlap();
+    mem_test_set(base_memset);
+#ifdef MEM_TEST_PLATFORM_MEM
+    mem_test_copy(memcpy);
+    mem_test_set(memset);
+    print("  (also tested the platform memcpy / memset)\n");
+#endif
+    print("memcpy / memmove / memset tests passed\n");
+}
+
 void test_strbuf(void) {
     print("## Testing strbuf...\n");
     Arena *arena = arena_create(4096);
@@ -1528,6 +1680,7 @@ void test_base(void) {
     test_vector_int();
     test_vector_int_ptr();
     test_string();
+    test_mem();
     test_strbuf();
     test_std_fds();
     test_args();

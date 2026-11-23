@@ -22,21 +22,13 @@
 //   * WASM:    Clang lowers them to the native memory.copy / memory.fill
 //              instructions.
 //
-// The implementations are tight byte loops. At -O3 -flto clang's
-// loop-idiom-recognition pass DOES recognise these as memcpy/memset
-// patterns and would rewrite the loop body as a call to memcpy/memset
-// itself — which, in a freestanding build where these very functions
-// are the only memcpy/memset definitions in the binary, results in
-// unbounded recursion (stack overflow / SIGSEGV) the first time
-// anything calls memset.
-//
-// Per-function workaround: insert a volatile asm barrier in each
-// iteration. Volatile asm with a "memory" clobber has side effects
-// the optimiser must preserve, which prevents loop-idiom-recognition
-// from treating the loop body as a pure byte-copy or byte-fill
-// pattern. Tested against clang 20 -O3 -flto on x86_64-linux-gnu:
-// the generated machine code for memcpy/memset is a vectorised byte
-// loop with no call instruction inside.
+// The implementations are the word-at-a-time loops of base/mem_word.h (the
+// same code as base_memcpy/base_memset), defined here under the names memcpy
+// and memset. That header also documents the loop-idiom hazard: clang/gcc can
+// rewrite a copy or fill loop into a call to memcpy/memset, which here is a
+// call to itself (unbounded recursion), so every loop iteration contains a
+// volatile asm barrier that blocks the transform. Check the disassembly
+// (`objdump -d`, no call inside memcpy/memset) when changing these.
 //
 // They are marked weak so a higher layer (for example a C standard
 // library subset that wraps memcpy()/memset() around
@@ -44,33 +36,10 @@
 // without colliding with these at link time. Code that only links
 // against corec gets these unconditionally.
 #ifndef COREC_STDLIB_PROVIDES_MEM
-__attribute__((weak))
-void* memcpy(void* dest, const void* src, size_t n) {
-    unsigned char* d = (unsigned char*)dest;
-    const unsigned char* s = (const unsigned char*)src;
-    for (size_t i = 0; i < n; i++) {
-        d[i] = s[i];
-        // Block clang/gcc loop-idiom-recognition from rewriting this byte loop
-        // into a self-recursive memcpy call (see comment above). tinyC does no
-        // such transform and has no inline asm, so the barrier is omitted.
-#ifndef __TINYC__
-        __asm__ volatile("" ::: "memory");
-#endif
-    }
-    return dest;
-}
-
-__attribute__((weak))
-void* memset(void* s, int c, size_t n) {
-    unsigned char* p = (unsigned char*)s;
-    for (size_t i = 0; i < n; i++) {
-        p[i] = (unsigned char)c;
-#ifndef __TINYC__
-        __asm__ volatile("" ::: "memory");
-#endif
-    }
-    return s;
-}
+#define BASE_MEM_WORD_MEMCPY memcpy
+#define BASE_MEM_WORD_MEMSET memset
+#define BASE_MEM_WORD_ATTR   __attribute__((weak))
+#include <base/mem_word.h>
 #endif
 
 // Syscall numbers for x86_64
