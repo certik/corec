@@ -36,3 +36,4 @@ u32 args_sizes_get(u32 out_argc, u32 out_buf_size);
 u32 args_get(u32 argv_ofs_arr, u32 argv_buf);
 u32 environ_sizes_get(u32 out_count, u32 out_buf_size);
 u32 environ_get(u32 environ, u32 buf);
+u32 clock_time_get(u32 clock_id, u64 precision, u32 time_out);

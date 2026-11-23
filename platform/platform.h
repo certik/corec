@@ -23,6 +23,7 @@
 #define platform_fd_seek   __host_platform_fd_seek
 #define platform_fd_tell   __host_platform_fd_tell
 #define platform_path_open __host_platform_path_open
+#define platform_clock_ns  __host_platform_clock_ns
 #endif
 // -----------------------------------------------------------------------------
 
@@ -106,6 +107,18 @@ uint32_t platform_fd_write(int fd, const ciovec_t* iovs, size_t iovs_len, size_t
 
 // Terminate the process with exit code `status`
 void platform_exit(int status);
+
+
+// Clock
+//
+// Monotonic clock in nanoseconds since an unspecified starting point. Only
+// differences between two calls are meaningful (use it to time code). Returns
+// 0 if the host provides no clock.
+//   * Linux:   clock_gettime(CLOCK_MONOTONIC) syscall
+//   * macOS:   clock_gettime_nsec_np(CLOCK_UPTIME_RAW)
+//   * Windows: QueryPerformanceCounter
+//   * WASM:    WASI clock_time_get(monotonic)
+uint64_t platform_clock_ns(void);
 
 
 // File I/O

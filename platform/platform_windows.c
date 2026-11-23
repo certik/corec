@@ -58,6 +58,8 @@ __declspec(dllimport) LPVOID __stdcall VirtualAlloc(LPVOID lpAddress, SIZE_T dwS
 __declspec(dllimport) void __stdcall ExitProcess(unsigned int uExitCode);
 __declspec(dllimport) HANDLE __stdcall CreateFileA(const char* lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode, void* lpSecurityAttributes, DWORD dwCreationDisposition, DWORD dwFlagsAndAttributes, HANDLE hTemplateFile);
 __declspec(dllimport) int __stdcall CloseHandle(HANDLE hObject);
+__declspec(dllimport) int __stdcall QueryPerformanceCounter(LARGE_INTEGER* lpPerformanceCount);
+__declspec(dllimport) int __stdcall QueryPerformanceFrequency(LARGE_INTEGER* lpFrequency);
 __declspec(dllimport) int __stdcall ReadFile(HANDLE hFile, LPVOID lpBuffer, DWORD nNumberOfBytesToRead, LPDWORD lpNumberOfBytesRead, void* lpOverlapped);
 __declspec(dllimport) int __stdcall SetFilePointerEx(HANDLE hFile, LARGE_INTEGER liDistanceToMove, LARGE_INTEGER* lpNewFilePointer, DWORD dwMoveMethod);
 __declspec(dllimport) wchar_t* __stdcall GetCommandLineW(void);
@@ -210,6 +212,20 @@ int _fltused = 1;
 // Process exit function
 void platform_exit(int status) {
     ExitProcess((unsigned int)status);
+}
+
+uint64_t platform_clock_ns(void) {
+    static uint64_t freq = 0;
+    LARGE_INTEGER c;
+    if (freq == 0) {
+        LARGE_INTEGER f;
+        if (!QueryPerformanceFrequency(&f) || f.QuadPart <= 0) return 0;
+        freq = (uint64_t)f.QuadPart;
+    }
+    if (!QueryPerformanceCounter(&c)) return 0;
+    uint64_t t = (uint64_t)c.QuadPart;
+    // Split to avoid overflowing t * 1e9 (the counter is ~10 MHz).
+    return (t / freq) * 1000000000u + (t % freq) * 1000000000u / freq;
 }
 
 // Forward declaration for command line argument initialization

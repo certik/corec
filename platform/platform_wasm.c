@@ -14,11 +14,12 @@
 //     path_open,
 //     args_sizes_get, args_get,
 //     environ_sizes_get, environ_get,
+//     clock_time_get,
 //     proc_exit
 //
 // "Imports" here is the WASM term: these symbols are not defined in the
 // `.wasm` module. The runtime that loads the module must supply them.
-// We use exactly eleven of them; everything else (including memory) is
+// We use exactly twelve of them; everything else (including memory) is
 // intrinsic via __builtin_wasm_memory_size / __builtin_wasm_memory_grow.
 //
 // What runs the produced .wasm?
@@ -29,7 +30,7 @@
 //   * Any modern browser, via examples/js/index.html.
 //
 // The two JS hosts share platform/js/wasi.js, which is the JavaScript
-// counterpart of *this* file — it implements the same eleven WASI imports
+// counterpart of *this* file — it implements the same twelve WASI imports
 // in pure JS and exposes a host-friendly API that run_node.js and
 // index.html plug into. See platform/js/wasi.js for details.
 // =============================================================================
@@ -51,6 +52,7 @@ int WASI(args_sizes_get)(size_t* argc, size_t* argv_buf_size);
 int WASI(args_get)(char** argv, char* argv_buf);
 int WASI(environ_sizes_get)(size_t* environ_count, size_t* environ_buf_size);
 int WASI(environ_get)(char** environ, char* environ_buf);
+int WASI(clock_time_get)(uint32_t clock_id, uint64_t precision, uint64_t* time);
 
 #undef WASI
 
@@ -92,6 +94,12 @@ extern uint8_t* __heap_base;
 
 void* platform_heap_base() {
     return &__heap_base;
+}
+
+uint64_t platform_clock_ns(void) {
+    uint64_t t = 0;
+    if (clock_time_get(1 /* monotonic */, 1, &t) != 0) return 0;
+    return t;
 }
 
 void platform_exit(int status) {
