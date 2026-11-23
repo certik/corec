@@ -10,6 +10,13 @@
 //     #define BASE_MEM_WORD_ATTR    __attribute__((weak))  // optional
 //     #include <base/mem_word.h>
 //
+// When BASE_MEM_WORD_MEMMOVE is defined, BASE_MEM_WORD_MEMCPY must be a corec
+// name (such as base_memcpy), never the real memcpy: the memmove calls it for
+// overlapping regions when dest is below src, which is correct for this
+// implementation but not for a call the compiler knows as memcpy (it may
+// assume that memcpy's arguments do not overlap). platform_linux.c defines the
+// real memcpy and memset, and no memmove.
+//
 // The functions are defined directly under the requested names, not as shared
 // helpers: tinyC gives `static` functions external linkage (two TUs with the
 // same static helper would clash at link time), and it does not inline, so a
@@ -34,7 +41,7 @@
 
 #include <base/types.h>
 
-#if defined(__GNUC__) && !defined(__TINYC__)
+#if (defined(__GNUC__) || defined(__clang__)) && !defined(__TINYC__)
 // The words alias the caller's bytes, whatever their declared type, so they
 // must be exempt from type-based (strict) aliasing analysis.
 typedef uintptr_t __attribute__((may_alias)) base_mem_word_t;
@@ -48,9 +55,11 @@ typedef uintptr_t __attribute__((may_alias)) base_mem_word_t;
 // barrier, gcc -O2 turns base_memset into a memset call and clang -O2 turns
 // memset into a call to itself. A volatile asm with a "memory" clobber in
 // every loop iteration is a side effect the optimiser must keep, so the loop
-// is no longer a pure copy/fill idiom. It emits no instructions. tinyC does no
-// such transform and has no inline asm, and MSVC has no strict aliasing, so
-// they take the #else branch.
+// is no longer a pure copy/fill idiom. It emits no instructions. clang-cl
+// defines __clang__ but not __GNUC__, and needs the barrier too (at /O1 and
+// /O2 it turns base_memset into a memset call). tinyC does no such transform
+// and has no inline asm, and MSVC (cl) has no strict aliasing, so they take
+// the #else branch.
 #define BASE_MEM_WORD_BARRIER() __asm__ volatile("" ::: "memory")
 #else
 typedef uintptr_t base_mem_word_t;
@@ -232,7 +241,7 @@ void* BASE_MEM_WORD_MEMSET(void* dest, int c, size_t n) {
             BASE_MEM_WORD_BARRIER();
         }
         // 0x0101...01 times the byte puts the byte into every byte of a word.
-        base_mem_word_t w = (base_mem_word_t)b * ((base_mem_word_t)-1 / 0xFF);
+        base_mem_word_t w = (base_mem_word_t)(c & 0xFF) * ((base_mem_word_t)-1 / 0xFF);
         base_mem_word_t* dw = (base_mem_word_t*)d;
         while (n >= 4 * BASE_MEM_WORD_SIZE) {
             dw[0] = w;

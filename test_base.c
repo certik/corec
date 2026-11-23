@@ -1101,6 +1101,11 @@ static uint64_t mem_test_ref_storage[(MEM_TEST_BUF_LEN + 7) / 8];
 
 static const size_t mem_test_big_lens[] = {255, 256, 257, 1000, 4096, MEM_TEST_MAX_LEN};
 
+// The byte reference stores through a volatile pointer, so that a build
+// without -fno-builtin cannot turn the reference loops themselves into
+// memcpy/memmove/memset calls.
+typedef volatile unsigned char* mem_test_vptr;
+
 typedef void* (*mem_test_copy_fn)(void*, const void*, size_t);
 typedef void* (*mem_test_set_fn)(void*, int, size_t);
 
@@ -1124,7 +1129,7 @@ static void mem_test_copy_case(mem_test_copy_fn fn, size_t len, size_t so, size_
     mem_test_fill(dst, 101);
     mem_test_fill(ref, 101);
     for (size_t i = 0; i < len; i++) {
-        ref[MEM_TEST_GUARD + doff + i] = src[MEM_TEST_GUARD + so + i];
+        ((mem_test_vptr)ref)[MEM_TEST_GUARD + doff + i] = src[MEM_TEST_GUARD + so + i];
     }
     void* r = fn(dst + MEM_TEST_GUARD + doff, src + MEM_TEST_GUARD + so, len);
     assert(r == dst + MEM_TEST_GUARD + doff);
@@ -1153,10 +1158,10 @@ static void mem_test_move_case(size_t len, size_t so, size_t doff) {
     mem_test_fill(buf, 7);
     mem_test_fill(ref, 7);
     for (size_t i = 0; i < len; i++) {
-        tmp[i] = ref[MEM_TEST_GUARD + so + i];
+        ((mem_test_vptr)tmp)[i] = ref[MEM_TEST_GUARD + so + i];
     }
     for (size_t i = 0; i < len; i++) {
-        ref[MEM_TEST_GUARD + doff + i] = tmp[i];
+        ((mem_test_vptr)ref)[MEM_TEST_GUARD + doff + i] = tmp[i];
     }
     void* r = base_memmove(buf + MEM_TEST_GUARD + doff, buf + MEM_TEST_GUARD + so, len);
     assert(r == buf + MEM_TEST_GUARD + doff);
@@ -1194,7 +1199,7 @@ static void mem_test_set_case(mem_test_set_fn fn, int c, size_t len, size_t doff
     mem_test_fill(dst, 11);
     mem_test_fill(ref, 11);
     for (size_t i = 0; i < len; i++) {
-        ref[MEM_TEST_GUARD + doff + i] = (unsigned char)c;
+        ((mem_test_vptr)ref)[MEM_TEST_GUARD + doff + i] = (unsigned char)c;
     }
     void* r = fn(dst + MEM_TEST_GUARD + doff, c, len);
     assert(r == dst + MEM_TEST_GUARD + doff);
