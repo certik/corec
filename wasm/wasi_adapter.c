@@ -146,3 +146,21 @@ u32 clock_time_get(u32 clock_id, u64 precision, u32 time_out) {
     *(u64 *)wasm_ptr(time_out) = platform_clock_ns();
     return 0;
 }
+
+#ifdef WASI_ADAPTER_LIFTER_STUBS
+// Forwarding stubs for the wasm -> native ELF lift path so the native backend
+// stays agnostic to corec symbol names:
+//   - __assert_fail: assert() from spliced host platform code (assert.c is
+//     GC'd out of the linked wasm module).
+//   - platform_init: forward to the spliced host platform's __host_platform_init.
+void __assert_fail(const char *assertion, const char *file, unsigned int line,
+                   const char *function) {
+    (void)assertion; (void)file; (void)line; (void)function;
+    platform_exit(1);
+}
+
+#undef platform_init
+void platform_init(int argc, char **argv, char **envp) {
+    __host_platform_init(argc, argv, envp);
+}
+#endif
