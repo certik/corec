@@ -195,9 +195,46 @@ void test_math(void) {
     assert(float_close(fast_tanf(-PI * 0.25f),-1.0f, 1e-3f));
 
     // Periodicity / range reduction
-    assert(float_close(fast_sinf(2.0f * PI), 0.0f, 1e-3f));
-    assert(float_close(fast_cosf(2.0f * PI), 1.0f, 1e-3f));
-    assert(float_close(fast_sinf(10.0f * PI + PI * 0.5f), 1.0f, 1e-2f));
+    assert(float_close(fast_sinf(2.0f * PI), 0.0f, 1e-5f));
+    assert(float_close(fast_cosf(2.0f * PI), 1.0f, 1e-5f));
+    assert(float_close(fast_sinf(10.0f * PI + PI * 0.5f), 1.0f, 1e-5f));
+
+    // Double-precision trig (>= 1e-14 relative accuracy)
+    const double PI_D = 3.14159265358979323846;
+    assert(double_close(fast_sin(0.0),            0.0, 1e-15));
+    assert(double_close(fast_sin(PI_D * 0.5),     1.0, 1e-14));
+    assert(double_close(fast_sin(-PI_D * 0.5),   -1.0, 1e-14));
+    assert(double_close(fast_sin(PI_D * 0.25),    0.70710678118654752, 1e-14));
+    assert(double_close(fast_cos(0.0),            1.0, 1e-15));
+    assert(double_close(fast_cos(PI_D),          -1.0, 1e-14));
+    assert(double_close(fast_cos(PI_D * 0.25),    0.70710678118654752, 1e-14));
+    assert(double_close(fast_tan(0.0),            0.0, 1e-15));
+    assert(double_close(fast_tan(PI_D * 0.25),    1.0, 1e-14));
+    assert(double_close(fast_tan(-PI_D * 0.25),  -1.0, 1e-14));
+
+    // exp / log / pow (double & float)
+    assert(double_close(fast_exp(0.0),            1.0, 1e-15));
+    assert(double_close(fast_exp(1.0),            2.7182818284590452, 1e-14));
+    assert(double_close(fast_log(1.0),            0.0, 1e-15));
+    assert(double_close(fast_log(2.7182818284590452), 1.0, 1e-14));
+    assert(double_close(fast_pow(2.0, 10.0),      1024.0, 1e-11));
+    assert(double_close(fast_pow(9.0, 0.5),       3.0, 1e-14));
+    assert(double_close(fast_pow(-2.0, 3.0),     -8.0, 1e-13));
+
+    assert(float_close(fast_expf(0.0f),           1.0f, 1e-6f));
+    assert(float_close(fast_expf(1.0f),           2.7182818f, 1e-5f));
+    assert(float_close(fast_logf(1.0f),           0.0f, 1e-6f));
+    assert(float_close(fast_logf(2.7182818f),     1.0f, 1e-5f));
+    assert(float_close(fast_powf(2.0f, 10.0f),    1024.0f, 1e-3f));
+    assert(float_close(fast_powf(9.0f, 0.5f),     3.0f, 1e-5f));
+
+    // floor / ceil / fmod
+    assert(base_floor(2.7) == 2.0 && base_floor(-2.7) == -3.0);
+    assert(base_ceil(2.1) == 3.0 && base_ceil(-2.1) == -2.0);
+    assert(double_close(base_fmod(5.5, 2.0), 1.5, 1e-15));
+    assert(base_floorf(2.7f) == 2.0f && base_floorf(-2.7f) == -3.0f);
+    assert(base_ceilf(2.1f) == 3.0f && base_ceilf(-2.1f) == -2.0f);
+    assert(float_close(base_fmodf(5.5f, 2.0f), 1.5f, 1e-6f));
 
     print("math tests passed\n");
 }
