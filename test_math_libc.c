@@ -241,26 +241,45 @@ static void check_pow(void) {
 static volatile double sink_d = 0.0;
 static volatile float sink_f = 0.0f;
 
-static void bench_1d(const char *name, double (*fn)(double), double (*ref_fn)(double),
-                     double lo, double hi) {
+#if defined(__GNUC__) || defined(__clang__)
+#define BENCH_NOINLINE __attribute__((noinline))
+#else
+#define BENCH_NOINLINE
+#endif
+
+static BENCH_NOINLINE void bench_1d(const char *name, double (*volatile fn_v)(double),
+                                    double (*volatile ref_v)(double), double lo, double hi) {
     const int N = 4096;
     const int REPS = 2000;
     double xs[4096];
     for (int i = 0; i < N; i++) xs[i] = lo + (hi - lo) * ((double)i / (double)N);
 
+    double (*fn)(double) = fn_v;
+    double (*ref_fn)(double) = ref_v;
+
     double t0 = now_ns();
-    double acc = 0.0;
+    double a0 = 0.0, a1 = 0.0, a2 = 0.0, a3 = 0.0;
     for (int r = 0; r < REPS; r++)
-        for (int i = 0; i < N; i++) acc += fn(xs[i]);
+        for (int i = 0; i < N; i += 4) {
+            a0 += fn(xs[i]);
+            a1 += fn(xs[i + 1]);
+            a2 += fn(xs[i + 2]);
+            a3 += fn(xs[i + 3]);
+        }
     double t1 = now_ns();
-    sink_d = acc;
+    sink_d = a0 + a1 + a2 + a3;
 
     double t2 = now_ns();
-    double acc2 = 0.0;
+    double b0 = 0.0, b1 = 0.0, b2 = 0.0, b3 = 0.0;
     for (int r = 0; r < REPS; r++)
-        for (int i = 0; i < N; i++) acc2 += ref_fn(xs[i]);
+        for (int i = 0; i < N; i += 4) {
+            b0 += ref_fn(xs[i]);
+            b1 += ref_fn(xs[i + 1]);
+            b2 += ref_fn(xs[i + 2]);
+            b3 += ref_fn(xs[i + 3]);
+        }
     double t3 = now_ns();
-    sink_d = acc2;
+    sink_d = b0 + b1 + b2 + b3;
 
     double ns_fast = (t1 - t0) / ((double)N * REPS);
     double ns_libm = (t3 - t2) / ((double)N * REPS);
@@ -268,26 +287,39 @@ static void bench_1d(const char *name, double (*fn)(double), double (*ref_fn)(do
            name, ns_fast, ns_libm, ns_libm / ns_fast);
 }
 
-static void bench_1f(const char *name, float (*fn)(float), float (*ref_fn)(float),
-                     float lo, float hi) {
+static BENCH_NOINLINE void bench_1f(const char *name, float (*volatile fn_v)(float),
+                                    float (*volatile ref_v)(float), float lo, float hi) {
     const int N = 4096;
     const int REPS = 2000;
     float xs[4096];
     for (int i = 0; i < N; i++) xs[i] = lo + (hi - lo) * ((float)i / (float)N);
 
+    float (*fn)(float) = fn_v;
+    float (*ref_fn)(float) = ref_v;
+
     double t0 = now_ns();
-    float acc = 0.0f;
+    float a0 = 0.0f, a1 = 0.0f, a2 = 0.0f, a3 = 0.0f;
     for (int r = 0; r < REPS; r++)
-        for (int i = 0; i < N; i++) acc += fn(xs[i]);
+        for (int i = 0; i < N; i += 4) {
+            a0 += fn(xs[i]);
+            a1 += fn(xs[i + 1]);
+            a2 += fn(xs[i + 2]);
+            a3 += fn(xs[i + 3]);
+        }
     double t1 = now_ns();
-    sink_f = acc;
+    sink_f = a0 + a1 + a2 + a3;
 
     double t2 = now_ns();
-    float acc2 = 0.0f;
+    float b0 = 0.0f, b1 = 0.0f, b2 = 0.0f, b3 = 0.0f;
     for (int r = 0; r < REPS; r++)
-        for (int i = 0; i < N; i++) acc2 += ref_fn(xs[i]);
+        for (int i = 0; i < N; i += 4) {
+            b0 += ref_fn(xs[i]);
+            b1 += ref_fn(xs[i + 1]);
+            b2 += ref_fn(xs[i + 2]);
+            b3 += ref_fn(xs[i + 3]);
+        }
     double t3 = now_ns();
-    sink_f = acc2;
+    sink_f = b0 + b1 + b2 + b3;
 
     double ns_fast = (t1 - t0) / ((double)N * REPS);
     double ns_libm = (t3 - t2) / ((double)N * REPS);
@@ -295,49 +327,89 @@ static void bench_1f(const char *name, float (*fn)(float), float (*ref_fn)(float
            name, ns_fast, ns_libm, ns_libm / ns_fast);
 }
 
-static void bench_pow(void) {
+static BENCH_NOINLINE void bench_2d(const char *name, double (*volatile fn_v)(double, double),
+                                    double (*volatile ref_v)(double, double)) {
     const int N = 4096;
     const int REPS = 1000;
     double xs[4096], ys[4096];
-    float xsf[4096], ysf[4096];
     for (int i = 0; i < N; i++) {
         xs[i] = 0.25 + 10.0 * ((double)i / (double)N);
         ys[i] = -3.0 + 6.0 * ((double)((i * 73) % N) / (double)N);
-        xsf[i] = (float)xs[i];
-        ysf[i] = (float)ys[i];
     }
 
-    double t0 = now_ns(), acc = 0.0;
-    for (int r = 0; r < REPS; r++)
-        for (int i = 0; i < N; i++) acc += fast_pow(xs[i], ys[i]);
-    double t1 = now_ns();
-    sink_d = acc;
+    double (*fn)(double, double) = fn_v;
+    double (*ref_fn)(double, double) = ref_v;
 
-    double t2 = now_ns(), acc2 = 0.0;
+    double t0 = now_ns(), a0 = 0.0, a1 = 0.0, a2 = 0.0, a3 = 0.0;
     for (int r = 0; r < REPS; r++)
-        for (int i = 0; i < N; i++) acc2 += pow(xs[i], ys[i]);
+        for (int i = 0; i < N; i += 4) {
+            a0 += fn(xs[i], ys[i]);
+            a1 += fn(xs[i + 1], ys[i + 1]);
+            a2 += fn(xs[i + 2], ys[i + 2]);
+            a3 += fn(xs[i + 3], ys[i + 3]);
+        }
+    double t1 = now_ns();
+    sink_d = a0 + a1 + a2 + a3;
+
+    double t2 = now_ns(), b0 = 0.0, b1 = 0.0, b2 = 0.0, b3 = 0.0;
+    for (int r = 0; r < REPS; r++)
+        for (int i = 0; i < N; i += 4) {
+            b0 += ref_fn(xs[i], ys[i]);
+            b1 += ref_fn(xs[i + 1], ys[i + 1]);
+            b2 += ref_fn(xs[i + 2], ys[i + 2]);
+            b3 += ref_fn(xs[i + 3], ys[i + 3]);
+        }
     double t3 = now_ns();
-    sink_d = acc2;
+    sink_d = b0 + b1 + b2 + b3;
     printf("  %-12s corec = %6.2f ns/call, libm = %6.2f ns/call  (%.2fx)\n",
-           "fast_pow", (t1 - t0) / ((double)N * REPS), (t3 - t2) / ((double)N * REPS),
+           name, (t1 - t0) / ((double)N * REPS), (t3 - t2) / ((double)N * REPS),
            (t3 - t2) / (t1 - t0));
+}
+
+static BENCH_NOINLINE void bench_2f(const char *name, float (*volatile fn_v)(float, float),
+                                    float (*volatile ref_v)(float, float)) {
+    const int N = 4096;
+    const int REPS = 1000;
+    float xsf[4096], ysf[4096];
+    for (int i = 0; i < N; i++) {
+        xsf[i] = (float)(0.25 + 10.0 * ((double)i / (double)N));
+        ysf[i] = (float)(-3.0 + 6.0 * ((double)((i * 73) % N) / (double)N));
+    }
+
+    float (*fn)(float, float) = fn_v;
+    float (*ref_fn)(float, float) = ref_v;
 
     double tf0 = now_ns();
-    float accf = 0.0f;
+    float a0 = 0.0f, a1 = 0.0f, a2 = 0.0f, a3 = 0.0f;
     for (int r = 0; r < REPS; r++)
-        for (int i = 0; i < N; i++) accf += fast_powf(xsf[i], ysf[i]);
+        for (int i = 0; i < N; i += 4) {
+            a0 += fn(xsf[i], ysf[i]);
+            a1 += fn(xsf[i + 1], ysf[i + 1]);
+            a2 += fn(xsf[i + 2], ysf[i + 2]);
+            a3 += fn(xsf[i + 3], ysf[i + 3]);
+        }
     double tf1 = now_ns();
-    sink_f = accf;
+    sink_f = a0 + a1 + a2 + a3;
 
     double tf2 = now_ns();
-    float accf2 = 0.0f;
+    float b0 = 0.0f, b1 = 0.0f, b2 = 0.0f, b3 = 0.0f;
     for (int r = 0; r < REPS; r++)
-        for (int i = 0; i < N; i++) accf2 += powf(xsf[i], ysf[i]);
+        for (int i = 0; i < N; i += 4) {
+            b0 += ref_fn(xsf[i], ysf[i]);
+            b1 += ref_fn(xsf[i + 1], ysf[i + 1]);
+            b2 += ref_fn(xsf[i + 2], ysf[i + 2]);
+            b3 += ref_fn(xsf[i + 3], ysf[i + 3]);
+        }
     double tf3 = now_ns();
-    sink_f = accf2;
+    sink_f = b0 + b1 + b2 + b3;
     printf("  %-12s corec = %6.2f ns/call, libm = %6.2f ns/call  (%.2fx)\n",
-           "fast_powf", (tf1 - tf0) / ((double)N * REPS), (tf3 - tf2) / ((double)N * REPS),
+           name, (tf1 - tf0) / ((double)N * REPS), (tf3 - tf2) / ((double)N * REPS),
            (tf3 - tf2) / (tf1 - tf0));
+}
+
+static void bench_pow(void) {
+    bench_2d("fast_pow", fast_pow, pow);
+    bench_2f("fast_powf", fast_powf, powf);
 }
 #endif
 
