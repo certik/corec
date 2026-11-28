@@ -47,6 +47,7 @@ typedef union {
 #define FILE_FLAG_SEQUENTIAL_SCAN 0x08000000
 #define FILE_MAP_COPY 0x00000001
 #define FILE_MAP_WRITE 0x00000002
+#define ERROR_SHARING_VIOLATION 32
 #ifndef SIZE_MAX
 #define SIZE_MAX ((size_t)-1)
 #endif
@@ -72,6 +73,7 @@ __declspec(dllimport) LPVOID __stdcall MapViewOfFile(HANDLE hFileMappingObject, 
 __declspec(dllimport) int __stdcall UnmapViewOfFile(LPCVOID lpBaseAddress);
 __declspec(dllimport) int __stdcall GetFileSizeEx(HANDLE hFile, LARGE_INTEGER* lpFileSize);
 __declspec(dllimport) void __stdcall Sleep(DWORD dwMilliseconds);
+__declspec(dllimport) DWORD __stdcall GetLastError(void);
 
 // Our emulated heap state for Windows
 static uint8_t* windows_heap_base = NULL;
@@ -332,6 +334,7 @@ platform_fd_t platform_path_open(const char* path, size_t path_len, uint64_t rig
             NULL
         );
         if (handle != INVALID_HANDLE_VALUE) break;
+        if (GetLastError() != ERROR_SHARING_VIOLATION) break;
         Sleep(50);
     }
 
